@@ -14,14 +14,15 @@ internal static class DaemonRunner
         var configManager = new ConfigManager();
         var config        = configManager.LoadOrCreate();
 
-        using var queue = new SyncQueue();
-        var parser       = new LogParser();
-        var watcher      = new LogWatcher();
-        var http         = new System.Net.Http.HttpClient();
-        var syncService  = new SyncService(configManager, queue, http);
+        using var queue   = new SyncQueue();
+        var parser         = new LogParser();
+        using var watcher  = new LogWatcher();
+        using var http     = new System.Net.Http.HttpClient();
+        var syncService    = new SyncService(configManager, queue, http);
 
         // REQ-37: on each file change, parse delta and enqueue batch
         watcher.Start(filePath => ProcessFile(filePath, config.Agent, parser, queue));
+
         syncService.Start();
 
         await Console.Error.WriteLineAsync("[ollim] daemon started");
@@ -32,7 +33,6 @@ internal static class DaemonRunner
         }
         catch (OperationCanceledException) { }
 
-        watcher.Stop();
         await syncService.StopAsync();
         await Console.Error.WriteLineAsync("[ollim] daemon stopped");
     }
