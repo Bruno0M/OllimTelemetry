@@ -1,3 +1,5 @@
 <linker>
-  <!-- Add root descriptors here as needed for NativeAOT trimming -->
+  <!-- Preserve all Cli types as a conservative safety net for NativeAOT trimming.
+       ConsoleAppFramework is source-generated and does not need a root descriptor. -->
+  <assembly fullname="ollim" preserve="all" />
 </linker>

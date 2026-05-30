@@ -15,7 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\OllimTelemetry.Core\OllimTelemetry.Core.csproj"     />
     <ProjectReference Include="..\OllimTelemetry.Models\OllimTelemetry.Models.csproj" />
-    <PackageReference Include="Spectre.Console"     Version="0.49.*" />
-    <PackageReference Include="Spectre.Console.Cli" Version="0.49.*" />
+    <PackageReference Include="Spectre.Console"        Version="0.49.*" />
+    <PackageReference Include="ConsoleAppFramework"    Version="5.*"    />
   </ItemGroup>
 </Project>
