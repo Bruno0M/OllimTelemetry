@@ -1,36 +1,24 @@
+using ConsoleAppFramework;
 using OllimTelemetry.Cli.Commands;
-using Spectre.Console.Cli;
+using OllimTelemetry.Cli.Daemon;
 
-var app = new CommandApp();
-app.Configure(config =>
+// Daemon entry point — invoked by the OS service manager, not by users.
+// The service template calls: ollim --run-daemon
+if (args.Contains("--run-daemon"))
 {
-    config.SetApplicationName("ollim");
-    config.SetApplicationVersion("0.1.0");
+    var cts = new CancellationTokenSource();
+    Console.CancelKeyPress   += (_, e) => { e.Cancel = true; cts.Cancel(); };
+    AppDomain.CurrentDomain.ProcessExit += (_, _) => cts.Cancel();
+    await DaemonRunner.RunAsync(cts.Token);
+    return;
+}
 
-    config.AddCommand<StartCommand>("start")
-          .WithDescription("Start the background daemon");
-
-    config.AddCommand<StopCommand>("stop")
-          .WithDescription("Stop the daemon");
-
-    config.AddCommand<StatusCommand>("status")
-          .WithDescription("Show daemon status and local token stats");
-
-    config.AddCommand<ConfigCommand>("config")
-          .WithDescription("Open config file in $EDITOR (or print path)");
-
-    config.AddCommand<StatsCommand>("stats")
-          .WithDescription("Print token usage for last 7 days");
-
-    config.AddCommand<UnlinkCommand>("unlink")
-          .WithDescription("Opt out and stop syncing (keeps local data)");
-
-    config.AddCommand<UninstallCommand>("uninstall")
-          .WithDescription("Remove daemon, config, and all local data");
-
-    config.AddCommand<DaemonCommand>("daemon")
-          .WithDescription("Run the telemetry loop (invoked by the OS service manager)")
-          .IsHidden();
-});
-
-return app.Run(args);
+var app = ConsoleApp.Create();
+app.Add("start",     StartCommand.RunAsync);
+app.Add("stop",      StopCommand.RunAsync);
+app.Add("status",    StatusCommand.RunAsync);
+app.Add("config",    ConfigCommand.RunAsync);
+app.Add("stats",     StatsCommand.RunAsync);
+app.Add("unlink",    UnlinkCommand.RunAsync);
+app.Add("uninstall", UninstallCommand.RunAsync);
+await app.RunAsync(args);
