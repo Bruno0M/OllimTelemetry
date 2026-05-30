@@ -1,0 +1,33 @@
+# Build outputs
+bin/
+obj/
+dist/
+
+# NuGet
+*.nupkg
+*.snupkg
+*.nuspec
+.nuget/
+
+# NativeAOT intermediates
+*.a
+*.o
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.rsuser
+
+# OS
+.DS_Store
+Thumbs.db
+
+# dotnet tool manifest
+.config/
+
+# Test results
+TestResults/
+coverage/
