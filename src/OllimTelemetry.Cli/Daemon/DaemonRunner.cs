@@ -4,60 +4,37 @@ using OllimTelemetry.Core.Queue;
 using OllimTelemetry.Core.Sync;
 using OllimTelemetry.Core.Watching;
 using OllimTelemetry.Models;
-using Spectre.Console.Cli;
 
-namespace OllimTelemetry.Cli.Commands;
+namespace OllimTelemetry.Cli.Daemon;
 
-// Internal entry point invoked by the OS service (launchd / systemd).
-// Not intended for direct user invocation.
-public sealed class DaemonCommand : AsyncCommand
+internal static class DaemonRunner
 {
-    public override async Task<int> ExecuteAsync(CommandContext context)
+    public static async Task RunAsync(CancellationToken ct)
     {
         var configManager = new ConfigManager();
         var config        = configManager.LoadOrCreate();
 
-        using var queue  = new SyncQueue();
-        var parser        = new LogParser();
-        var watcher       = new LogWatcher();
-        var http          = new System.Net.Http.HttpClient();
-        var syncService   = new SyncService(configManager, queue, http);
-
-        var cts = new CancellationTokenSource();
-
-        // REQ-36: handle SIGTERM and SIGINT
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            cts.Cancel();
-        };
-
-        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
-        {
-            cts.Cancel();
-            // give StopAsync a moment to flush before the process exits
-            syncService.StopAsync().GetAwaiter().GetResult();
-        };
+        using var queue = new SyncQueue();
+        var parser       = new LogParser();
+        var watcher      = new LogWatcher();
+        var http         = new System.Net.Http.HttpClient();
+        var syncService  = new SyncService(configManager, queue, http);
 
         // REQ-37: on each file change, parse delta and enqueue batch
         watcher.Start(filePath => ProcessFile(filePath, config.Agent, parser, queue));
-
         syncService.Start();
 
         await Console.Error.WriteLineAsync("[ollim] daemon started");
 
         try
         {
-            await Task.Delay(Timeout.Infinite, cts.Token);
+            await Task.Delay(Timeout.Infinite, ct);
         }
         catch (OperationCanceledException) { }
 
-        // graceful shutdown — REQ-37
         watcher.Stop();
         await syncService.StopAsync();
         await Console.Error.WriteLineAsync("[ollim] daemon stopped");
-
-        return 0;
     }
 
     private static void ProcessFile(string filePath, string agent, LogParser parser, SyncQueue queue)
@@ -71,7 +48,6 @@ public sealed class DaemonCommand : AsyncCommand
 
             queue.SetOffset(filePath, newOffset);
 
-            // aggregate the entire delta into one batch
             var batch = new SyncBatch(
                 agent,
                 records.Sum(r => r.InputTokens),
