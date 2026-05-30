@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using ConsoleAppFramework;
 using OllimTelemetry.Cli.Commands;
 using OllimTelemetry.Cli.Daemon;
@@ -7,8 +8,15 @@ using OllimTelemetry.Cli.Daemon;
 if (args.Contains("--run-daemon"))
 {
     var cts = new CancellationTokenSource();
-    Console.CancelKeyPress   += (_, e) => { e.Cancel = true; cts.Cancel(); };
-    AppDomain.CurrentDomain.ProcessExit += (_, _) => cts.Cancel();
+    Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+    // PosixSignalRegistration is required for SIGTERM under NativeAOT on Linux —
+    // AppDomain.ProcessExit does not fire reliably in the native runtime.
+    // ctx.Cancel = true suppresses the default OS termination so cleanup can run.
+    using var sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, ctx =>
+    {
+        ctx.Cancel = true;
+        cts.Cancel();
+    });
     await DaemonRunner.RunAsync(cts.Token);
     return;
 }
