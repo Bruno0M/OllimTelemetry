@@ -31,3 +31,7 @@ Thumbs.db
 # Test results
 TestResults/
 coverage/
+
+# Specs and plans (local dev artifacts)
+.specs/
+docs/superpowers/
