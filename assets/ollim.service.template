@@ -1,0 +1,12 @@
+[Unit]
+Description=Ollim Telemetry Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{BINARY_PATH}} daemon
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
