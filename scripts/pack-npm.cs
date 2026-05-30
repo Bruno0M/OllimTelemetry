@@ -15,10 +15,10 @@ Console.WriteLine();
 // RID → (npm package name, native SQLite library filename)
 var packages = new Dictionary<string, (string PkgName, string NativeLib)>
 {
-    ["linux-x64"]   = ("ollim-linux-x64",    "libe_sqlite3.so"),
-    ["linux-arm64"] = ("ollim-linux-arm64",   "libe_sqlite3.so"),
-    ["osx-arm64"]   = ("ollim-darwin-arm64",  "libe_sqlite3.dylib"),
-    ["osx-x64"]     = ("ollim-darwin-x64",    "libe_sqlite3.dylib"),
+    ["linux-x64"]   = ("ollim-linux-x64",   "libe_sqlite3.so"),
+    ["linux-arm64"] = ("ollim-linux-arm64",  "libe_sqlite3.so"),
+    ["osx-arm64"]   = ("ollim-darwin-arm64", "libe_sqlite3.dylib"),
+    // ["osx-x64"]  = ("ollim-darwin-x64",   "libe_sqlite3.dylib"), // temporarily disabled
 };
 
 // ── 1. Update versions in all package.json files ────────────────────────────
