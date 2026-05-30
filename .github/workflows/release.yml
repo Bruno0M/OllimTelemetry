@@ -1,0 +1,210 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. 0.1.0) — pipeline test only, nothing is published'
+        required: true
+        default: '0.0.0-dev'
+
+jobs:
+  build:
+    name: Build (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+          - os: macos-latest
+            rid: osx-arm64
+          - os: macos-13
+            rid: osx-x64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install NativeAOT prerequisites (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y clang zlib1g-dev
+
+      - name: Set version
+        id: ver
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "value=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "value=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build NativeAOT binary
+        shell: bash
+        run: |
+          dotnet publish src/OllimTelemetry.Cli/OllimTelemetry.Cli.csproj \
+            -c Release \
+            -r ${{ matrix.rid }} \
+            --self-contained true \
+            /p:PublishAot=true \
+            /p:AssemblyVersion=${{ steps.ver.outputs.value }} \
+            -o dist/${{ matrix.rid }}
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ollim-${{ matrix.rid }}
+          path: dist/${{ matrix.rid }}/ollim
+          if-no-files-found: error
+
+      - name: Upload SQLite library artifact (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-${{ matrix.rid }}
+          path: dist/${{ matrix.rid }}/libe_sqlite3.so
+          if-no-files-found: error
+
+      - name: Upload SQLite library artifact (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-${{ matrix.rid }}
+          path: dist/${{ matrix.rid }}/libe_sqlite3.dylib
+          if-no-files-found: error
+
+  release:
+    name: Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Set version
+        id: ver
+        run: echo "value=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      # Download binaries into dist/<rid>/ (matches scripts/pack-npm.cs expectations)
+      - name: Download linux-x64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ollim-linux-x64
+          path: dist/linux-x64
+
+      - name: Download linux-x64 SQLite
+        uses: actions/download-artifact@v4
+        with:
+          name: sqlite-linux-x64
+          path: dist/linux-x64
+
+      - name: Download linux-arm64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ollim-linux-arm64
+          path: dist/linux-arm64
+
+      - name: Download linux-arm64 SQLite
+        uses: actions/download-artifact@v4
+        with:
+          name: sqlite-linux-arm64
+          path: dist/linux-arm64
+
+      - name: Download osx-arm64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ollim-osx-arm64
+          path: dist/osx-arm64
+
+      - name: Download osx-arm64 SQLite
+        uses: actions/download-artifact@v4
+        with:
+          name: sqlite-osx-arm64
+          path: dist/osx-arm64
+
+      - name: Download osx-x64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ollim-osx-x64
+          path: dist/osx-x64
+
+      - name: Download osx-x64 SQLite
+        uses: actions/download-artifact@v4
+        with:
+          name: sqlite-osx-x64
+          path: dist/osx-x64
+
+      - name: Restore executable permissions
+        run: chmod +x dist/*/ollim
+
+      # Package each RID as a tarball — shim downloads and extracts
+      # Asset name pattern must match shim URL: ollim-{rid}.tar.gz
+      - name: Create release tarballs
+        run: |
+          mkdir release-assets
+          for rid in linux-x64 linux-arm64 osx-arm64 osx-x64; do
+            tar -czf release-assets/ollim-$rid.tar.gz -C dist/$rid .
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*.tar.gz
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+
+      - name: Pack NuGet tool
+        run: |
+          dotnet pack src/OllimTelemetry.Tool/ \
+            -p:Version=${{ steps.ver.outputs.value }} \
+            -o dist/nupkg
+
+      - name: Push to NuGet
+        run: |
+          dotnet nuget push dist/nupkg/ollim.${{ steps.ver.outputs.value }}.nupkg \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json
+
+      - name: Pack npm packages
+        run: dotnet scripts/pack-npm.cs
+
+      - name: Publish npm platform packages
+        run: |
+          VERSION=${{ steps.ver.outputs.value }}
+          for pkg in ollim-linux-x64 ollim-linux-arm64 ollim-darwin-arm64 ollim-darwin-x64; do
+            npm publish npm/$pkg/$pkg-$VERSION.tgz --access public
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish npm main package
+        run: |
+          VERSION=${{ steps.ver.outputs.value }}
+          npm publish npm/ollim/ollim-$VERSION.tgz --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,19 @@
+{
+  "name": "ollim-linux-arm64",
+  "version": "0.1.0",
+  "description": "Linux arm64 native binary for ollim",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "bin": {
+    "ollim": "bin/ollim"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Bruno0M/OllimTelemetry.git"
+  },
+  "license": "MIT"
+}

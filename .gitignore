@@ -1,7 +1,13 @@
 # Build outputs
-bin/
-obj/
+src/**/bin/
+src/**/obj/
 dist/
+
+# npm packages — native files (populated by pack-npm.cs at release time, not committed)
+npm/ollim-*/bin/ollim
+npm/ollim-*/bin/libe_sqlite3.so
+npm/ollim-*/bin/libe_sqlite3.dylib
+npm/**/*.tgz
 
 # NuGet
 *.nupkg

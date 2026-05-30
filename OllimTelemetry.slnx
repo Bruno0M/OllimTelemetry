@@ -4,5 +4,6 @@
     <Project Path="src/OllimTelemetry.Core/OllimTelemetry.Core.csproj" />
     <Project Path="src/OllimTelemetry.Models/OllimTelemetry.Models.csproj" />
     <Project Path="src/OllimTelemetry.Tests/OllimTelemetry.Tests.csproj" />
+    <Project Path="src/OllimTelemetry.Tool/OllimTelemetry.Tool.csproj" />
   </Folder>
 </Solution>

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>ollim-tool</AssemblyName>
+    <RootNamespace>OllimTelemetry.Tool</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>14</LangVersion>
+
+    <!-- NuGet tool packaging -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>ollim</ToolCommandName>
+    <PackageId>ollim</PackageId>
+    <Version>0.1.0</Version>
+    <Description>ollim — Claude Code token usage telemetry daemon</Description>
+    <PackageTags>claude;ai;telemetry;cli;tool</PackageTags>
+
+    <!-- Explicitly NOT NativeAOT — this shim must run on the managed runtime -->
+    <PublishAot>false</PublishAot>
+    <Optimize>true</Optimize>
+
+    <!-- Windows is explicitly unsupported; DetectRid() exits 1 before SetExecutable is reached -->
+    <NoWarn>CA1416</NoWarn>
+  </PropertyGroup>
+</Project>

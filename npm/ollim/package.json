@@ -1,0 +1,22 @@
+{
+  "name": "ollim",
+  "version": "0.1.0",
+  "description": "Claude Code token usage telemetry daemon",
+  "bin": {
+    "ollim": "bin/ollim"
+  },
+  "optionalDependencies": {
+    "ollim-linux-x64": "0.1.0",
+    "ollim-linux-arm64": "0.1.0",
+    "ollim-darwin-arm64": "0.1.0",
+    "ollim-darwin-x64": "0.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Bruno0M/OllimTelemetry.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": "\u003E=18"
+  }
+}

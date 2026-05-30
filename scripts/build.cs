@@ -5,7 +5,7 @@ using System.Diagnostics;
 
 var rids = new[] { "osx-arm64", "osx-x64", "linux-x64", "linux-arm64" };
 
-var rootDir   = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, ".."));
+var rootDir   = Environment.CurrentDirectory; // must be run from the repo root
 var cliProject = Path.Combine(rootDir, "src", "OllimTelemetry.Cli", "OllimTelemetry.Cli.csproj");
 var version   = GetVersion();
 
