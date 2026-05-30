@@ -2,13 +2,12 @@ using OllimTelemetry.Core.Config;
 using OllimTelemetry.Core.Daemon;
 using OllimTelemetry.Core.Queue;
 using Spectre.Console;
-using Spectre.Console.Cli;
 
 namespace OllimTelemetry.Cli.Commands;
 
-public sealed class StatusCommand : AsyncCommand
+internal static class StatusCommand
 {
-    public override Task<int> ExecuteAsync(CommandContext context)
+    public static Task<int> RunAsync()
     {
         var configManager = new ConfigManager();
         var daemonManager = new DaemonManager();

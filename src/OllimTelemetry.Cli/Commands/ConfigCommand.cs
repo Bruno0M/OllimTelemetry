@@ -1,15 +1,13 @@
 using OllimTelemetry.Core.Config;
 using Spectre.Console;
-using Spectre.Console.Cli;
 
 namespace OllimTelemetry.Cli.Commands;
 
-public sealed class ConfigCommand : AsyncCommand
+internal static class ConfigCommand
 {
-    public override Task<int> ExecuteAsync(CommandContext context)
+    public static Task<int> RunAsync()
     {
-        var editor = Environment.GetEnvironmentVariable("EDITOR");
-
+        var editor     = Environment.GetEnvironmentVariable("EDITOR");
         var configPath = ConfigManager.DefaultConfigFilePath;
 
         if (!string.IsNullOrWhiteSpace(editor))

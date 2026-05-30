@@ -1,12 +1,11 @@
 using OllimTelemetry.Core.Daemon;
 using Spectre.Console;
-using Spectre.Console.Cli;
 
 namespace OllimTelemetry.Cli.Commands;
 
-public sealed class StopCommand : AsyncCommand
+internal static class StopCommand
 {
-    public override Task<int> ExecuteAsync(CommandContext context)
+    public static Task<int> RunAsync()
     {
         var daemonManager = new DaemonManager();
         var (success, message) = daemonManager.Unregister();
