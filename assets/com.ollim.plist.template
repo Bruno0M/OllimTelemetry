@@ -8,7 +8,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>{{BINARY_PATH}}</string>
-        <string>daemon</string>
+        <string>--run-daemon</string>
     </array>
 
     <key>RunAtLoad</key>

@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart={{BINARY_PATH}} daemon
+ExecStart={{BINARY_PATH}} --run-daemon
 Restart=on-failure
 RestartSec=5
 
