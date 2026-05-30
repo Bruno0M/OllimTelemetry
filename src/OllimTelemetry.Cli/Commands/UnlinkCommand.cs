@@ -1,12 +1,11 @@
 using OllimTelemetry.Core.Config;
 using Spectre.Console;
-using Spectre.Console.Cli;
 
 namespace OllimTelemetry.Cli.Commands;
 
-public sealed class UnlinkCommand : AsyncCommand
+internal static class UnlinkCommand
 {
-    public override Task<int> ExecuteAsync(CommandContext context)
+    public static Task<int> RunAsync()
     {
         var configManager = new ConfigManager();
         var config        = configManager.LoadOrCreate();

@@ -1,13 +1,12 @@
 using OllimTelemetry.Core.Config;
 using OllimTelemetry.Core.Daemon;
 using Spectre.Console;
-using Spectre.Console.Cli;
 
 namespace OllimTelemetry.Cli.Commands;
 
-public sealed class UninstallCommand : AsyncCommand
+internal static class UninstallCommand
 {
-    public override Task<int> ExecuteAsync(CommandContext context)
+    public static Task<int> RunAsync()
     {
         var confirmed = AnsiConsole.Confirm(
             "[red]This will remove the daemon, config, and all local data. Continue?[/]",
@@ -20,7 +19,7 @@ public sealed class UninstallCommand : AsyncCommand
         }
 
         var daemonManager = new DaemonManager();
-        var (_, msg)      = daemonManager.Unregister();
+        daemonManager.Unregister();
 
         var ollimDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ollim");

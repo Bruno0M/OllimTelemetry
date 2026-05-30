@@ -1,16 +1,15 @@
 using OllimTelemetry.Core.Queue;
 using Spectre.Console;
-using Spectre.Console.Cli;
 
 namespace OllimTelemetry.Cli.Commands;
 
-public sealed class StatsCommand : AsyncCommand
+internal static class StatsCommand
 {
-    public override Task<int> ExecuteAsync(CommandContext context)
+    public static Task<int> RunAsync()
     {
-        using var queue   = new SyncQueue();
-        var cutoff        = DateTime.UtcNow.AddDays(-7).ToString("O");
-        var batches       = queue.GetBatchesSince(cutoff);
+        using var queue = new SyncQueue();
+        var cutoff      = DateTime.UtcNow.AddDays(-7).ToString("O");
+        var batches     = queue.GetBatchesSince(cutoff);
 
         var table = new Table()
             .AddColumn("Date")
