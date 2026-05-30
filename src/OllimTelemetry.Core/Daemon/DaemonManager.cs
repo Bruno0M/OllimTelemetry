@@ -4,9 +4,6 @@ namespace OllimTelemetry.Core.Daemon;
 
 public sealed class DaemonManager
 {
-    private static readonly string AssetsDir = Path.Combine(
-        AppContext.BaseDirectory, "assets");
-
     private static readonly string PlistPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         "Library", "LaunchAgents", "com.ollim.plist");
@@ -142,16 +139,12 @@ public sealed class DaemonManager
 
     private static string LoadTemplate(string name)
     {
-        var path = Path.Combine(AssetsDir, name);
-        if (File.Exists(path))
-            return File.ReadAllText(path);
+        var stream = typeof(DaemonManager).Assembly.GetManifestResourceStream(name);
+        if (stream is not null)
+            using (var reader = new System.IO.StreamReader(stream))
+                return reader.ReadToEnd();
 
-        // fallback: search relative to the binary
-        var alt = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "assets", name);
-        if (File.Exists(alt))
-            return File.ReadAllText(alt);
-
-        throw new FileNotFoundException($"Template not found: {name}");
+        throw new FileNotFoundException($"Embedded template not found: {name}");
     }
 
     private static (int ExitCode, string Output) RunProcess(string cmd, string args)
