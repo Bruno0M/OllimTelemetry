@@ -46,7 +46,7 @@ public sealed class OnboardingFlow
         };
 
         _configManager.Save(config);
-        AnsiConsole.MarkupLine($"[green]✓[/] Config saved to [dim]{ConfigManager.ConfigFilePath}[/]");
+        AnsiConsole.MarkupLine($"[green]✓[/] Config saved to [dim]{_configManager.ConfigFilePath}[/]");
 
         var (success, message) = _daemonManager.Register(binaryPath);
         if (success)

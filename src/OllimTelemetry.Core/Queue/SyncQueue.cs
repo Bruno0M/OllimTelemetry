@@ -5,15 +5,16 @@ namespace OllimTelemetry.Core.Queue;
 
 public sealed class SyncQueue : IDisposable
 {
-    private static readonly string DbPath = Path.Combine(
+    private static readonly string DefaultDbPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ollim", "queue.db");
 
     private readonly SqliteConnection _conn;
 
-    public SyncQueue()
+    public SyncQueue(string? dbPath = null)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(DbPath)!);
-        _conn = new SqliteConnection($"Data Source={DbPath}");
+        var path = dbPath ?? DefaultDbPath;
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        _conn = new SqliteConnection($"Data Source={path}");
         _conn.Open();
         EnsureSchema();
     }

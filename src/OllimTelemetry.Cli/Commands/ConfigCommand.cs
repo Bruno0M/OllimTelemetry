@@ -10,10 +10,12 @@ public sealed class ConfigCommand : AsyncCommand
     {
         var editor = Environment.GetEnvironmentVariable("EDITOR");
 
+        var configPath = ConfigManager.DefaultConfigFilePath;
+
         if (!string.IsNullOrWhiteSpace(editor))
         {
             using var proc = new System.Diagnostics.Process();
-            proc.StartInfo = new System.Diagnostics.ProcessStartInfo(editor, ConfigManager.ConfigFilePath)
+            proc.StartInfo = new System.Diagnostics.ProcessStartInfo(editor, configPath)
             {
                 UseShellExecute = false
             };
@@ -22,7 +24,7 @@ public sealed class ConfigCommand : AsyncCommand
         }
         else
         {
-            AnsiConsole.MarkupLine($"Config path: [bold]{ConfigManager.ConfigFilePath}[/]");
+            AnsiConsole.MarkupLine($"Config path: [bold]{configPath}[/]");
             AnsiConsole.MarkupLine("[dim]Set $EDITOR to open it automatically.[/]");
         }
 
