@@ -14,7 +14,7 @@ public sealed class StartCommand : AsyncCommand
         var daemonManager = new DaemonManager();
         var binaryPath    = Environment.ProcessPath ?? "ollim";
 
-        if (!File.Exists(ConfigManager.ConfigFilePath))
+        if (!File.Exists(configManager.ConfigFilePath))
         {
             var flow = new OnboardingFlow(configManager, daemonManager);
             flow.Run(binaryPath);
