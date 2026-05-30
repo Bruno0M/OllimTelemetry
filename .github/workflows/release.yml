@@ -25,6 +25,7 @@ jobs:
             rid: linux-arm64
           - os: macos-latest
             rid: osx-arm64
+          # osx-x64 (macos-13) temporarily disabled — slow runner queue
           # - os: macos-13
           #   rid: osx-x64
 
@@ -147,29 +148,32 @@ jobs:
           name: sqlite-osx-arm64
           path: dist/osx-arm64
 
-      - name: Download osx-x64 binary
-        uses: actions/download-artifact@v4
-        with:
-          name: ollim-osx-x64
-          path: dist/osx-x64
-
-      - name: Download osx-x64 SQLite
-        uses: actions/download-artifact@v4
-        with:
-          name: sqlite-osx-x64
-          path: dist/osx-x64
+      # osx-x64 temporarily disabled
+      # - name: Download osx-x64 binary
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: ollim-osx-x64
+      #     path: dist/osx-x64
+      #
+      # - name: Download osx-x64 SQLite
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: sqlite-osx-x64
+      #     path: dist/osx-x64
 
       - name: Restore executable permissions
         run: chmod +x dist/*/ollim
 
-      # Package each RID as a tarball — shim downloads and extracts
+      # Package each active RID as a tarball — shim downloads and extracts
       # Asset name pattern must match shim URL: ollim-{rid}.tar.gz
       - name: Create release tarballs
         run: |
           mkdir release-assets
-          for rid in linux-x64 linux-arm64 osx-arm64 osx-x64; do
+          for rid in linux-x64 linux-arm64 osx-arm64; do
             tar -czf release-assets/ollim-$rid.tar.gz -C dist/$rid .
           done
+          # osx-x64 temporarily disabled
+          # tar -czf release-assets/ollim-osx-x64.tar.gz -C dist/osx-x64 .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -196,9 +200,11 @@ jobs:
       - name: Publish npm platform packages
         run: |
           VERSION=${{ steps.ver.outputs.value }}
-          for pkg in ollim-linux-x64 ollim-linux-arm64 ollim-darwin-arm64 ollim-darwin-x64; do
+          for pkg in ollim-linux-x64 ollim-linux-arm64 ollim-darwin-arm64; do
             npm publish npm/$pkg/$pkg-$VERSION.tgz --access public
           done
+          # ollim-darwin-x64 temporarily disabled
+          # npm publish npm/ollim-darwin-x64/ollim-darwin-x64-$VERSION.tgz --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
