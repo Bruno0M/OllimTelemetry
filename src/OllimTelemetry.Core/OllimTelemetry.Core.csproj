@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>OllimTelemetry.Core</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>14</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OllimTelemetry.Models\OllimTelemetry.Models.csproj" />
+    <PackageReference Include="Microsoft.Data.Sqlite"         Version="10.*" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.*"  />
+  </ItemGroup>
+</Project>

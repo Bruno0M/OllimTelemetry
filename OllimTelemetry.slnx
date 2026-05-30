@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OllimTelemetry.Cli/OllimTelemetry.Cli.csproj" />
+    <Project Path="src/OllimTelemetry.Core/OllimTelemetry.Core.csproj" />
+    <Project Path="src/OllimTelemetry.Models/OllimTelemetry.Models.csproj" />
+  </Folder>
+</Solution>

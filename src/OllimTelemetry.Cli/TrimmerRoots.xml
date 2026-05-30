@@ -1,0 +1,3 @@
+<linker>
+  <!-- Add root descriptors here as needed for NativeAOT trimming -->
+</linker>
