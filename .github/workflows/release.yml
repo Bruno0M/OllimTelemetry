@@ -25,8 +25,8 @@ jobs:
             rid: linux-arm64
           - os: macos-latest
             rid: osx-arm64
-          - os: macos-13
-            rid: osx-x64
+          # - os: macos-13
+          #   rid: osx-x64
 
     steps:
       - uses: actions/checkout@v4
