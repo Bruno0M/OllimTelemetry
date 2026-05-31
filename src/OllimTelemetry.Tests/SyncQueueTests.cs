@@ -96,4 +96,29 @@ public sealed class SyncQueueTests : IDisposable
         Assert.Single(recent);
         Assert.Equal(2, recent[0].InputTokens);
     }
+
+    [Fact]
+    public void Enqueue_WithRepoName_RoundTripsViaDequeue()
+    {
+        using var queue = Queue();
+
+        var batch = new SyncBatch("claude-code", 100, 50, 10, 0,
+            "2026-01-01T00:00:00Z", "2026-01-01T00:05:00Z", "MyProject");
+        queue.Enqueue(batch);
+
+        var items = queue.Dequeue(1);
+        Assert.Single(items);
+        Assert.Equal("MyProject", items[0].Batch.RepoName);
+    }
+
+    [Fact]
+    public void Enqueue_WithNullRepoName_RoundTripsNull()
+    {
+        using var queue = Queue();
+
+        queue.Enqueue(Batch());
+        var items = queue.Dequeue(1);
+        Assert.Single(items);
+        Assert.Null(items[0].Batch.RepoName);
+    }
 }

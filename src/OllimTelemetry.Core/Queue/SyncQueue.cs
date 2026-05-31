@@ -42,6 +42,16 @@ public sealed class SyncQueue : IDisposable
             );
             """;
         cmd.ExecuteNonQuery();
+        try
+        {
+            using var alter = _conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE pending_batches ADD COLUMN repo_name TEXT";
+            alter.ExecuteNonQuery();
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException)
+        {
+            // column already exists — idempotent
+        }
     }
 
     public long GetOffset(string filePath)
@@ -71,8 +81,8 @@ public sealed class SyncQueue : IDisposable
         using var cmd = _conn.CreateCommand();
         cmd.CommandText = """
             INSERT INTO pending_batches
-                (agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end)
-            VALUES ($agent, $i, $o, $cr, $cw, $ps, $pe);
+                (agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end, repo_name)
+            VALUES ($agent, $i, $o, $cr, $cw, $ps, $pe, $rn);
             """;
         cmd.Parameters.AddWithValue("$agent", batch.Agent);
         cmd.Parameters.AddWithValue("$i",     batch.InputTokens);
@@ -81,6 +91,7 @@ public sealed class SyncQueue : IDisposable
         cmd.Parameters.AddWithValue("$cw",    batch.CacheWriteTokens);
         cmd.Parameters.AddWithValue("$ps",    batch.PeriodStart);
         cmd.Parameters.AddWithValue("$pe",    batch.PeriodEnd);
+        cmd.Parameters.AddWithValue("$rn",    (object?)batch.RepoName ?? DBNull.Value);
         cmd.ExecuteNonQuery();
     }
 
@@ -88,7 +99,7 @@ public sealed class SyncQueue : IDisposable
     {
         using var cmd = _conn.CreateCommand();
         cmd.CommandText = """
-            SELECT id, agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end
+            SELECT id, agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end, repo_name
             FROM pending_batches
             WHERE next_retry_at <= datetime('now')
             ORDER BY id ASC
@@ -108,7 +119,8 @@ public sealed class SyncQueue : IDisposable
                 reader.GetInt64(4),
                 reader.GetInt64(5),
                 reader.GetString(6),
-                reader.GetString(7)
+                reader.GetString(7),
+                reader.IsDBNull(8) ? null : reader.GetString(8)
             );
             results.Add((id, batch));
         }
@@ -119,7 +131,7 @@ public sealed class SyncQueue : IDisposable
     {
         using var cmd = _conn.CreateCommand();
         cmd.CommandText = """
-            SELECT agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end
+            SELECT agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end, repo_name
             FROM pending_batches
             WHERE period_start >= $since
             ORDER BY period_start DESC;
@@ -137,7 +149,8 @@ public sealed class SyncQueue : IDisposable
                 reader.GetInt64(3),
                 reader.GetInt64(4),
                 reader.GetString(5),
-                reader.GetString(6)
+                reader.GetString(6),
+                reader.IsDBNull(7) ? null : reader.GetString(7)
             ));
         }
         return results;
