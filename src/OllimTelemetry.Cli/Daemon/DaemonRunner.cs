@@ -55,7 +55,8 @@ internal static class DaemonRunner
                 records.Sum(r => r.CacheReadTokens),
                 records.Sum(r => r.CacheWriteTokens),
                 records[0].Timestamp.ToString("O"),
-                records[^1].Timestamp.ToString("O")
+                records[^1].Timestamp.ToString("O"),
+                ProjectPathResolver.Resolve(filePath)
             );
 
             queue.Enqueue(batch);
