@@ -80,7 +80,8 @@ public sealed class SyncService
                     batch.CacheWriteTokens,
                     batch.PeriodStart,
                     batch.PeriodEnd,
-                    _clientVersion
+                    _clientVersion,
+                    config.ShareRepoName ? batch.RepoName : null
                 );
 
                 try
