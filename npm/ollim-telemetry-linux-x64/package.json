@@ -1,12 +1,12 @@
 {
-  "name": "ollim-darwin-arm64",
+  "name": "ollim-telemetry-linux-x64",
   "version": "0.1.0",
-  "description": "macOS arm64 native binary for ollim",
+  "description": "Linux x64 native binary for ollim-telemetry",
   "os": [
-    "darwin"
+    "linux"
   ],
   "cpu": [
-    "arm64"
+    "x64"
   ],
   "bin": {
     "ollim": "bin/ollim"

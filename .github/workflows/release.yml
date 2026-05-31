@@ -201,17 +201,17 @@ jobs:
       - name: Publish npm platform packages
         run: |
           VERSION=${{ steps.ver.outputs.value }}
-          for pkg in ollim-linux-x64 ollim-linux-arm64 ollim-darwin-arm64; do
+          for pkg in ollim-telemetry-linux-x64 ollim-telemetry-linux-arm64 ollim-telemetry-darwin-arm64; do
             npm publish npm/$pkg/$pkg-$VERSION.tgz --access public
           done
-          # ollim-darwin-x64 temporarily disabled
-          # npm publish npm/ollim-darwin-x64/ollim-darwin-x64-$VERSION.tgz --access public
+          # ollim-telemetry-darwin-x64 temporarily disabled
+          # npm publish npm/ollim-telemetry-darwin-x64/ollim-telemetry-darwin-x64-$VERSION.tgz --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish npm main package
         run: |
           VERSION=${{ steps.ver.outputs.value }}
-          npm publish npm/ollim/ollim-$VERSION.tgz --access public
+          npm publish npm/ollim-telemetry/ollim-telemetry-$VERSION.tgz --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

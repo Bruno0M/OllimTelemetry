@@ -15,15 +15,15 @@ Console.WriteLine();
 // RID → (npm package name, native SQLite library filename)
 var packages = new Dictionary<string, (string PkgName, string NativeLib)>
 {
-    ["linux-x64"]   = ("ollim-linux-x64",   "libe_sqlite3.so"),
-    ["linux-arm64"] = ("ollim-linux-arm64",  "libe_sqlite3.so"),
-    ["osx-arm64"]   = ("ollim-darwin-arm64", "libe_sqlite3.dylib"),
-    // ["osx-x64"]  = ("ollim-darwin-x64",   "libe_sqlite3.dylib"), // temporarily disabled
+    ["linux-x64"]   = ("ollim-telemetry-linux-x64",   "libe_sqlite3.so"),
+    ["linux-arm64"] = ("ollim-telemetry-linux-arm64",  "libe_sqlite3.so"),
+    ["osx-arm64"]   = ("ollim-telemetry-darwin-arm64", "libe_sqlite3.dylib"),
+    // ["osx-x64"]  = ("ollim-telemetry-darwin-x64",   "libe_sqlite3.dylib"), // temporarily disabled
 };
 
 // ── 1. Update versions in all package.json files ────────────────────────────
 
-var allPackageDirs = new[] { "ollim" }
+var allPackageDirs = new[] { "ollim-telemetry" }
     .Concat(packages.Values.Select(v => v.PkgName))
     .Select(pkg => Path.Combine(rootDir, "npm", pkg))
     .ToArray();
@@ -37,7 +37,7 @@ foreach (var dir in allPackageDirs)
 }
 
 // Update optionalDependencies versions in main package
-var mainPkgJson = Path.Combine(rootDir, "npm", "ollim", "package.json");
+var mainPkgJson = Path.Combine(rootDir, "npm", "ollim-telemetry", "package.json");
 SetOptionalDepsVersion(mainPkgJson, version);
 Console.WriteLine();
 
@@ -87,7 +87,7 @@ Console.WriteLine();
 Console.WriteLine("Running npm pack...");
 
 // Platform packages first so they're available when packing the main package
-var packOrder = packages.Values.Select(v => v.PkgName).Append("ollim").ToArray();
+var packOrder = packages.Values.Select(v => v.PkgName).Append("ollim-telemetry").ToArray();
 
 foreach (var pkgName in packOrder)
 {
@@ -111,7 +111,7 @@ Console.WriteLine($"  2. Publish platform packages first:");
 foreach (var (_, (pkgName, _)) in packages)
     Console.WriteLine($"       npm publish npm/{pkgName}/{pkgName}-{version}.tgz --access public");
 Console.WriteLine($"  3. Publish main package:");
-Console.WriteLine($"       npm publish npm/ollim/ollim-{version}.tgz --access public");
+Console.WriteLine($"       npm publish npm/ollim-telemetry/ollim-telemetry-{version}.tgz --access public");
 Console.WriteLine();
 Console.WriteLine("Verify with: npm info ollim version");
 

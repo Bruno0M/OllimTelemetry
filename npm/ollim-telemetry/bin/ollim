@@ -5,10 +5,10 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 
 const PLATFORM_PACKAGES = {
-  'linux-x64':    'ollim-linux-x64',
-  'linux-arm64':  'ollim-linux-arm64',
-  'darwin-arm64': 'ollim-darwin-arm64',
-  'darwin-x64':   'ollim-darwin-x64',
+  'linux-x64':    'ollim-telemetry-linux-x64',
+  'linux-arm64':  'ollim-telemetry-linux-arm64',
+  'darwin-arm64': 'ollim-telemetry-darwin-arm64',
+  'darwin-x64':   'ollim-telemetry-darwin-x64',
 };
 
 const platformKey = `${process.platform}-${process.arch}`;
@@ -28,7 +28,7 @@ try {
 } catch {
   process.stderr.write(
     `ollim: platform package ${pkgName} is not installed\n` +
-    `       try reinstalling: npm install -g ollim\n`
+    `       try reinstalling: npm install -g ollim-telemetry\n`
   );
   process.exit(1);
 }
