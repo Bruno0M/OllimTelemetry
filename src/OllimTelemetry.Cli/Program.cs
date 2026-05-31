@@ -22,11 +22,12 @@ if (args.Contains("--run-daemon"))
 }
 
 var app = ConsoleApp.Create();
-app.Add("start",     StartCommand.RunAsync);
-app.Add("stop",      StopCommand.RunAsync);
-app.Add("status",    StatusCommand.RunAsync);
-app.Add("config",    ConfigCommand.RunAsync);
-app.Add("stats",     StatsCommand.RunAsync);
-app.Add("unlink",    UnlinkCommand.RunAsync);
-app.Add("uninstall", UninstallCommand.RunAsync);
+app.Add("start",       StartCommand.RunAsync);
+app.Add("stop",        StopCommand.RunAsync);
+app.Add("status",      StatusCommand.RunAsync);
+app.Add("config",      ConfigCommand.RunAsync);
+app.Add("stats",       StatsCommand.RunAsync);
+app.Add("leaderboard", LeaderboardCommand.RunAsync);
+app.Add("unlink",      UnlinkCommand.RunAsync);
+app.Add("uninstall",   UninstallCommand.RunAsync);
 await app.RunAsync(args);
