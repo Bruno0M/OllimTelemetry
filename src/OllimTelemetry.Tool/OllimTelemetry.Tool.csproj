@@ -11,7 +11,7 @@
     <!-- NuGet tool packaging -->
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>ollim</ToolCommandName>
-    <PackageId>ollim</PackageId>
+    <PackageId>ollim-telemetry</PackageId>
     <Version>0.1.0</Version>
     <Description>ollim — Claude Code token usage telemetry daemon</Description>
     <PackageTags>claude;ai;telemetry;cli;tool</PackageTags>
