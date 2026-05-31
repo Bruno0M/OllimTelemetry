@@ -192,7 +192,8 @@ jobs:
         run: |
           dotnet nuget push dist/nupkg/ollim.${{ steps.ver.outputs.value }}.nupkg \
             --api-key ${{ secrets.NUGET_API_KEY }} \
-            --source https://api.nuget.org/v3/index.json
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
 
       - name: Pack npm packages
         run: dotnet scripts/pack-npm.cs
