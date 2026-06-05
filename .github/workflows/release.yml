@@ -182,24 +182,6 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
 
-      - name: Upload to R2
-        run: |
-          VERSION="v${{ steps.ver.outputs.value }}"
-          for rid in linux-x64 linux-arm64 osx-arm64; do
-            aws s3 cp release-assets/ollim-$rid.tar.gz \
-              s3://ollim-releases/$VERSION/ollim-$rid.tar.gz \
-              --endpoint-url ${{ secrets.R2_ENDPOINT }}
-          done
-          echo "$VERSION" | aws s3 cp - \
-            s3://ollim-releases/latest \
-            --endpoint-url ${{ secrets.R2_ENDPOINT }} \
-            --content-type text/plain \
-            --cache-control "no-cache"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_KEY }}
-          AWS_DEFAULT_REGION: auto
-
       - name: Pack NuGet tool
         run: |
           dotnet pack src/OllimTelemetry.Tool/ \

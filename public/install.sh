@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RELEASES_URL="https://releases.ollim.dev"
+RELEASES_BASE="https://github.com/Bruno0M/OllimTelemetry/releases/latest/download"
 
 # ── Platform detection ────────────────────────────────────────────────────────
 
@@ -30,25 +30,14 @@ esac
 
 RID="${rid_os}-${rid_arch}"
 
-# ── Fetch latest version ──────────────────────────────────────────────────────
-
-echo "Fetching latest release..."
-
-VERSION=$(curl -fsSL "${RELEASES_URL}/latest")
-
-if [ -z "$VERSION" ]; then
-  echo "error: could not determine latest version" >&2
-  exit 1
-fi
-
-echo "Installing ollim ${VERSION} (${RID})..."
-
 # ── Download & extract ────────────────────────────────────────────────────────
+
+echo "Installing latest ollim (${RID})..."
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-URL="${RELEASES_URL}/${VERSION}/ollim-${RID}.tar.gz"
+URL="${RELEASES_BASE}/ollim-${RID}.tar.gz"
 
 if ! curl -fsSL "$URL" -o "$TMP/ollim.tar.gz"; then
   echo "error: failed to download $URL" >&2
@@ -87,7 +76,7 @@ done
 # ── PATH notice ───────────────────────────────────────────────────────────────
 
 echo ""
-echo "✓ ollim ${VERSION} installed to ${INSTALL_DIR}/ollim"
+echo "✓ ollim installed to ${INSTALL_DIR}/ollim"
 
 if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
   echo ""
