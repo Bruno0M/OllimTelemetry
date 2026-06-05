@@ -190,7 +190,7 @@ jobs:
 
       - name: Push to NuGet
         run: |
-          dotnet nuget push dist/nupkg/ollim.${{ steps.ver.outputs.value }}.nupkg \
+          dotnet nuget push dist/nupkg/ollim-telemetry.${{ steps.ver.outputs.value }}.nupkg \
             --api-key ${{ secrets.NUGET_API_KEY }} \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
