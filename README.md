@@ -9,7 +9,7 @@ Built with NativeAOT — ~9 MB binary, 23 ms startup, ~10 MB steady-state RAM.
 **Via install script** (no Node.js required):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Bruno0M/OllimTelemetry/main/install.sh | bash
+curl -fsSL https://ollim.dev/install.sh | bash
 ```
 
 **Via npm:**
