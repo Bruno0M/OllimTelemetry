@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="Bruno0M/OllimTelemetry"
+RELEASES_URL="https://releases.ollim.dev"
 
 # ── Platform detection ────────────────────────────────────────────────────────
 
@@ -34,12 +34,10 @@ RID="${rid_os}-${rid_arch}"
 
 echo "Fetching latest release..."
 
-VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-  | grep '"tag_name"' \
-  | sed 's/.*"tag_name": *"\(.*\)".*/\1/')
+VERSION=$(curl -fsSL "${RELEASES_URL}/latest")
 
 if [ -z "$VERSION" ]; then
-  echo "error: could not determine latest version from GitHub" >&2
+  echo "error: could not determine latest version" >&2
   exit 1
 fi
 
@@ -50,11 +48,11 @@ echo "Installing ollim ${VERSION} (${RID})..."
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-URL="https://github.com/${REPO}/releases/download/${VERSION}/ollim-${RID}.tar.gz"
+URL="${RELEASES_URL}/${VERSION}/ollim-${RID}.tar.gz"
 
 if ! curl -fsSL "$URL" -o "$TMP/ollim.tar.gz"; then
   echo "error: failed to download $URL" >&2
-  echo "       Check https://github.com/${REPO}/releases for available platforms." >&2
+  echo "       Check https://ollim.dev for supported platforms." >&2
   exit 1
 fi
 
