@@ -2,6 +2,10 @@ using System.Runtime.InteropServices;
 using ConsoleAppFramework;
 using OllimTelemetry.Cli.Commands;
 using OllimTelemetry.Cli.Daemon;
+using OllimTelemetry.Core;
+
+if (XdgMigration.TryMigrate())
+    Console.Error.WriteLine("[ollim] migrated config to XDG paths (~/.config/ollim, ~/.local/share/ollim)");
 
 // Daemon entry point — invoked by the OS service manager, not by users.
 // The service template calls: ollim --run-daemon

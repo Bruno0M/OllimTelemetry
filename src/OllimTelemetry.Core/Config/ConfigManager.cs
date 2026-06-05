@@ -4,16 +4,15 @@ namespace OllimTelemetry.Core.Config;
 
 public sealed class ConfigManager
 {
-    private static readonly string DefaultConfigDir =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ollim");
-
     private readonly string _configDir;
     private readonly string _configPath;
 
     public ConfigManager(string? configDir = null)
     {
-        _configDir  = configDir ?? DefaultConfigDir;
-        _configPath = Path.Combine(_configDir, "config.json");
+        _configDir  = configDir ?? OllimPaths.ConfigDir;
+        _configPath = configDir is not null
+            ? Path.Combine(configDir, "config.json")
+            : OllimPaths.ConfigFile;
     }
 
     public AppConfig LoadOrCreate()
@@ -38,6 +37,5 @@ public sealed class ConfigManager
 
     public string ConfigFilePath => _configPath;
 
-    public static string DefaultConfigFilePath =>
-        Path.Combine(DefaultConfigDir, "config.json");
+    public static string DefaultConfigFilePath => OllimPaths.ConfigFile;
 }

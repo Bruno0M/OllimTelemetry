@@ -1,3 +1,4 @@
+using OllimTelemetry.Core;
 using OllimTelemetry.Core.Config;
 using OllimTelemetry.Core.Daemon;
 using Spectre.Console;
@@ -21,11 +22,11 @@ internal static class UninstallCommand
         var daemonManager = new DaemonManager();
         daemonManager.Unregister();
 
-        var ollimDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ollim");
-
-        if (Directory.Exists(ollimDir))
-            Directory.Delete(ollimDir, recursive: true);
+        foreach (var dir in new[] { OllimPaths.ConfigDir, OllimPaths.DataDir, OllimPaths.LegacyDir })
+        {
+            if (Directory.Exists(dir))
+                Directory.Delete(dir, recursive: true);
+        }
 
         AnsiConsole.MarkupLine("[green]✓[/] Daemon stopped and unregistered.");
         AnsiConsole.MarkupLine("[green]✓[/] All local data removed.");
