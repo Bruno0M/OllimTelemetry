@@ -39,8 +39,19 @@ public sealed class LogParser
             using var doc = JsonDocument.Parse(line);
             var root = doc.RootElement;
 
-            if (!root.TryGetProperty("usage", out var usage)) // PRIVACY: usage only
+            // Usage lives at root.message.usage (Claude Code log format)
+            // or at root.usage (future/alternate formats).
+            JsonElement usage;
+            if (root.TryGetProperty("message", out var msg) && msg.TryGetProperty("usage", out usage))
+            {
+                // only assistant turns carry billable usage
+                if (!msg.TryGetProperty("role", out var role) || role.GetString() != "assistant")
+                    return;
+            }
+            else if (!root.TryGetProperty("usage", out usage))
+            {
                 return;
+            }
 
             // PRIVACY: timestamp only — no content
             var timestamp = root.TryGetProperty("timestamp", out var ts) && ts.ValueKind == JsonValueKind.String

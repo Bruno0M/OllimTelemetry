@@ -23,6 +23,9 @@ public sealed class SyncQueue : IDisposable
     {
         using var cmd = _conn.CreateCommand();
         cmd.CommandText = """
+            PRAGMA journal_mode = WAL;
+            PRAGMA cache_size   = -200;
+
             CREATE TABLE IF NOT EXISTS file_offsets (
                 file_path  TEXT PRIMARY KEY,
                 byte_offset INTEGER NOT NULL

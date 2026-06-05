@@ -20,6 +20,11 @@ internal static class DaemonRunner
         using var http     = new System.Net.Http.HttpClient();
         var syncService    = new SyncService(configManager, queue, http);
 
+        // Backfill: process all existing .jsonl files before watching for new changes.
+        // GetOffset returns 0 for unseen files and the stored byte offset for files
+        // already partially processed, so this is safe to run on every startup.
+        BackfillExistingFiles(config.Agent, parser, queue);
+
         // REQ-37: on each file change, parse delta and enqueue batch
         watcher.Start(filePath => ProcessFile(filePath, config.Agent, parser, queue));
 
@@ -35,6 +40,30 @@ internal static class DaemonRunner
 
         await syncService.StopAsync();
         await Console.Error.WriteLineAsync("[ollim] daemon stopped");
+    }
+
+    private static readonly string WatchPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "projects");
+
+    private static void BackfillExistingFiles(string agent, LogParser parser, SyncQueue queue)
+    {
+        if (!Directory.Exists(WatchPath)) return;
+
+        var files = Directory.EnumerateFiles(WatchPath, "*.jsonl", SearchOption.AllDirectories);
+        var count = 0;
+
+        foreach (var file in files)
+        {
+            ProcessFile(file, agent, parser, queue);
+            count++;
+        }
+
+        if (count > 0)
+            Console.Error.WriteLine($"[ollim] backfilled {count} existing log file(s)");
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
     }
 
     private static void ProcessFile(string filePath, string agent, LogParser parser, SyncQueue queue)
