@@ -77,7 +77,6 @@ internal static class HookCommand
         if (!string.IsNullOrWhiteSpace(input.TranscriptPath))
             return input.TranscriptPath;
 
-        // Fallback: search by session_id filename.
         if (!string.IsNullOrWhiteSpace(input.SessionId) && Directory.Exists(OllimPaths.ClaudeProjectsRoot))
         {
             var match = Directory.EnumerateFiles(

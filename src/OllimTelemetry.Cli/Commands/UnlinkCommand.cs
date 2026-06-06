@@ -10,7 +10,7 @@ internal static class UnlinkCommand
         var configManager = new ConfigManager();
         var config        = configManager.LoadOrCreate();
 
-        // D-09: keep UserId — only disable sharing
+        // keep UserId — only disable sharing
         configManager.Save(config with { ShareGlobal = false });
 
         AnsiConsole.MarkupLine("[green]✓[/] Sharing disabled. Your data will no longer be submitted to the leaderboard.");

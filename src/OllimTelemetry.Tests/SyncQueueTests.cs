@@ -21,7 +21,6 @@ public sealed class SyncQueueTests : IDisposable
     private static SyncBatch Batch(string agent = "claude-code", long input = 100) =>
         new(agent, input, 50, 10, 0, "2026-01-01T00:00:00Z", "2026-01-01T00:05:00Z");
 
-    // AC-04: enqueue 3 → dequeue returns all 3 → MarkSent clears → dequeue returns empty
     [Fact]
     public void Enqueue_Dequeue_MarkSent_ClearsQueue()
     {

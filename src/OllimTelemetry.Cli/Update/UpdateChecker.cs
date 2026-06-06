@@ -29,7 +29,6 @@ internal static class UpdateChecker
             .Split('+')[0]; // strip build-metadata suffix (e.g. "+abc1234")
 
     // Fire-and-forget — never blocks the command path.
-    // Skip when the cached result is still fresh to avoid hitting the GitHub API on every invocation.
     internal static void ScheduleRefresh()
     {
         if (IsCacheFresh()) return;

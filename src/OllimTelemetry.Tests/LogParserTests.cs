@@ -18,7 +18,6 @@ public sealed class LogParserTests : IDisposable
         return path;
     }
 
-    // AC-02: 3 lines (1 with usage, 1 without, 1 with usage) → 2 records with correct counts
     [Fact]
     public void Parse_ReturnsOnlyLinesWithUsage()
     {
