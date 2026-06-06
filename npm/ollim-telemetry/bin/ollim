@@ -33,9 +33,14 @@ try {
   process.exit(1);
 }
 
+const binDir = path.dirname(binPath);
+const ldPath = process.env.LD_LIBRARY_PATH
+  ? `${binDir}:${process.env.LD_LIBRARY_PATH}`
+  : binDir;
+
 const result = spawnSync(binPath, process.argv.slice(2), {
   stdio: 'inherit',
-  env: { ...process.env, OLLIM_INSTALL_METHOD: 'npm' },
+  env: { ...process.env, OLLIM_INSTALL_METHOD: 'npm', LD_LIBRARY_PATH: ldPath },
 });
 
 if (result.error) {

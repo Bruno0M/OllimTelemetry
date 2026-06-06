@@ -27,6 +27,7 @@ if (!File.Exists(binary))
 
 var psi = new ProcessStartInfo(binary) { UseShellExecute = false };
 psi.Environment["OLLIM_INSTALL_METHOD"] = "nuget";
+psi.Environment["LD_LIBRARY_PATH"] = cacheDir + ":" + (Environment.GetEnvironmentVariable("LD_LIBRARY_PATH") ?? "");
 foreach (var arg in args) psi.ArgumentList.Add(arg);
 
 using var proc = new Process { StartInfo = psi };
@@ -57,8 +58,9 @@ static string GetVersion() =>
 
 static string GetCacheDir(string version)
 {
-    var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-    var dir  = Path.Combine(home, ".ollim", "bin", version);
+    var cacheHome = Environment.GetEnvironmentVariable("XDG_CACHE_HOME")
+        ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cache");
+    var dir = Path.Combine(cacheHome, "ollim", "bin", version);
     Directory.CreateDirectory(dir);
     return dir;
 }
