@@ -6,21 +6,32 @@ Built with NativeAOT — ~9 MB binary, 23 ms startup, ~10 MB steady-state RAM.
 
 ## Install
 
-**Via install script** (no Node.js required):
+**MacOS/Linux (Recommended):**
 
 ```bash
 curl -fsSL https://ollim.dev/install.sh | bash
 ```
 
-**Via npm:**
+**Npm:**
 
 ```bash
 npm install -g ollim-telemetry
 ```
+> Requires Node ≥ 18.
 
-Requires Node ≥ 18. Binaries are available for:
-- `linux-x64`, `linux-arm64`
-- `darwin-arm64` (macOS Apple Silicon)
+**Nuget:**
+
+```bash
+dotnet tool install -g ollim-telemetry
+```
+> Requires .NET 10 SDK.
+
+**Pre-built Binaries**
+
+Download from [releases](https://github.com/Bruno0M/OllimTelemetry/releases):
+
+- Linux: `ollim-linux-x64.tar.gz` / `ollim-linux-arm64.tar.gz`
+- macOS: `ollim-osx-arm64.tar.gz`
 
 ## Quick start
 
@@ -37,7 +48,7 @@ The daemon registers itself as a **launchd** service on macOS or a **systemd --u
 
 1. Watches `~/.claude/projects/**/*.jsonl` for new Claude Code log entries
 2. Parses only the `usage` field (input/output/cache tokens) — message content is never read
-3. Accumulates token counts in a local SQLite queue at `~/.ollim/queue.db`
+3. Accumulates token counts in a local SQLite queue at `~/.local/share/ollim/queue.db`
 4. Periodically (default: every 5 minutes) flushes the queue to `api.ollim.dev` if sharing is enabled
 5. HTTP failures are retried with exponential backoff; the daemon never crashes on network issues
 
@@ -58,13 +69,13 @@ The daemon registers itself as a **launchd** service on macOS or a **systemd --u
 | `ollim status` | Show daemon state, sharing config, and pending batch count |
 | `ollim stats` | Token usage table for the last 7 days |
 | `ollim leaderboard` | Community leaderboard |
-| `ollim config` | Open `~/.ollim/config.json` in `$EDITOR` |
+| `ollim config` | Open `~/.config/ollim/config.json` in `$VISUAL`/`$EDITOR`/`vi` |
 | `ollim unlink` | Disable sharing while keeping local data and UserId |
-| `ollim uninstall` | Stop daemon and delete all data in `~/.ollim/` |
+| `ollim uninstall` | Stop daemon and delete all local data |
 
 ## Configuration
 
-Config lives at `~/.ollim/config.json`:
+Config lives at `~/.config/ollim/config.json`:
 
 ```json
 {
@@ -99,6 +110,16 @@ dotnet publish src/OllimTelemetry.Cli/OllimTelemetry.Cli.csproj \
 dotnet script scripts/build.cs
 ```
 
+## Supported Agents
+
+| Agent | Status |
+|---|---|
+| [Claude Code](https://claude.ai/code) | ✅ Supported |
+| [Codex CLI](https://github.com/openai/codex) | 🚧 Coming soon |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | 🚧 Coming soon |
+| [Cursor](https://cursor.com) | 🚧 Coming soon |
+| [GitHub Copilot](https://github.com/features/copilot) | 🚧 Coming soon |
+
 ## License
 
-MIT
+[MIT](./LICENSE)
