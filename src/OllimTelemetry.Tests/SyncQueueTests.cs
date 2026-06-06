@@ -121,4 +121,46 @@ public sealed class SyncQueueTests : IDisposable
         Assert.Single(items);
         Assert.Null(items[0].Batch.RepoName);
     }
+
+    [Fact]
+    public void HasAnyOffsets_ReturnsFalse_WhenTableIsEmpty()
+    {
+        using var queue = Queue();
+        Assert.False(queue.HasAnyOffsets());
+    }
+
+    [Fact]
+    public void HasAnyOffsets_ReturnsTrue_AfterSetOffset()
+    {
+        using var queue = Queue();
+        queue.SetOffset("/some/file.jsonl", 1024L);
+        Assert.True(queue.HasAnyOffsets());
+    }
+
+    [Fact]
+    public void SetOffsetAndEnqueue_IsAtomic_BothRecordsPresent()
+    {
+        using var queue = Queue();
+        var batch = Batch();
+
+        queue.SetOffsetAndEnqueue("/file.jsonl", 512L, batch);
+
+        Assert.Equal(512L, queue.GetOffset("/file.jsonl"));
+        Assert.Single(queue.Dequeue(10));
+    }
+
+    [Fact]
+    public void CountPending_ReturnsTotal_IncludingBackoffBatches()
+    {
+        using var queue = Queue();
+        queue.Enqueue(Batch());
+        queue.Enqueue(Batch());
+
+        var items = queue.Dequeue(10);
+        queue.MarkFailed(items[0].Id); // puts one into future backoff
+
+        // Dequeue would return only 1, but CountPending should return 2
+        Assert.Equal(2, queue.CountPending());
+        Assert.Single(queue.Dequeue(10));
+    }
 }
