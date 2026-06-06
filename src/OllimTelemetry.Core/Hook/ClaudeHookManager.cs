@@ -36,8 +36,18 @@ public static class ClaudeHookManager
                     using var doc = JsonDocument.Parse(existingJson);
                     if (HasHook(doc.RootElement, command))
                         return (false, null);
+
+                    // Replace a stale ollim hook (e.g. from a previous install path)
+                    // rather than appending a duplicate entry.
+                    var staleCommand = FindOllimHookCommand(doc.RootElement);
+                    if (staleCommand is not null)
+                        existingJson = RemoveHook(existingJson, staleCommand);
                 }
-                catch (JsonException) { existingJson = null; }
+                catch (JsonException)
+                {
+                    return (false,
+                        $"~/.claude/settings.json contains invalid JSON — fix it manually, then run `ollim start` again.");
+                }
             }
 
             var newJson = existingJson is not null
@@ -66,10 +76,17 @@ public static class ClaudeHookManager
         {
             var existingJson = File.ReadAllText(path);
             using var doc = JsonDocument.Parse(existingJson);
-            if (!HasHook(doc.RootElement, command))
+
+            // Accept exact match first; fall back to any ollim hook so that
+            // `ollim stop` still works after the binary was reinstalled to a different path.
+            var toRemove = HasHook(doc.RootElement, command)
+                ? command
+                : FindOllimHookCommand(doc.RootElement);
+
+            if (toRemove is null)
                 return (false, null);
 
-            var newJson = RemoveHook(existingJson, command);
+            var newJson = RemoveHook(existingJson, toRemove);
             File.Copy(path, path + ".bak", overwrite: true);
             File.WriteAllText(path, newJson);
             return (true, null);
@@ -97,6 +114,35 @@ public static class ClaudeHookManager
                     return true;
         }
         return false;
+    }
+
+    // Returns the command string of any existing ollim hook, regardless of binary path.
+    // Used to detect stale entries after a reinstall so they can be replaced, not duplicated.
+    private static string? FindOllimHookCommand(JsonElement root)
+    {
+        if (!root.TryGetProperty("hooks", out var hooks)) return null;
+        if (!hooks.TryGetProperty(HookEvent, out var groups)) return null;
+        if (groups.ValueKind != JsonValueKind.Array) return null;
+
+        foreach (var group in groups.EnumerateArray())
+        {
+            if (!group.TryGetProperty("hooks", out var items)) continue;
+            if (items.ValueKind != JsonValueKind.Array) continue;
+            foreach (var item in items.EnumerateArray())
+                if (item.TryGetProperty("command", out var cmd) && IsOllimHookCommand(cmd.GetString()))
+                    return cmd.GetString();
+        }
+        return null;
+    }
+
+    // Matches any "ollim hook" invocation regardless of the binary's install path.
+    private static bool IsOllimHookCommand(string? command)
+    {
+        if (command is null) return false;
+        var binaryPart = command.Split(' ')[0];
+        var fileName   = Path.GetFileNameWithoutExtension(binaryPart);
+        return string.Equals(fileName, "ollim", StringComparison.OrdinalIgnoreCase)
+            && command.TrimEnd().EndsWith(" hook", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string MergeHook(string existingJson, string command)
@@ -187,15 +233,49 @@ public static class ClaudeHookManager
     private static void WriteGroupsWithAdded(Utf8JsonWriter w, JsonElement existing, string command)
     {
         w.WriteStartArray();
-        foreach (var item in existing.EnumerateArray())
-            item.WriteTo(w);
-        w.WriteStartObject();
-        w.WriteString("matcher", "");
-        w.WritePropertyName("hooks");
-        w.WriteStartArray();
-        WriteHookItem(w, command);
-        w.WriteEndArray();
-        w.WriteEndObject();
+        bool merged = false;
+        foreach (var group in existing.EnumerateArray())
+        {
+            // Merge into an existing empty-matcher group rather than appending a new one.
+            if (!merged
+                && group.TryGetProperty("matcher", out var m) && m.GetString() == ""
+                && group.TryGetProperty("hooks", out var items)
+                && items.ValueKind == JsonValueKind.Array)
+            {
+                w.WriteStartObject();
+                foreach (var p in group.EnumerateObject())
+                {
+                    if (p.Name == "hooks")
+                    {
+                        w.WritePropertyName("hooks");
+                        w.WriteStartArray();
+                        foreach (var h in items.EnumerateArray()) h.WriteTo(w);
+                        WriteHookItem(w, command);
+                        w.WriteEndArray();
+                    }
+                    else
+                    {
+                        p.WriteTo(w);
+                    }
+                }
+                w.WriteEndObject();
+                merged = true;
+            }
+            else
+            {
+                group.WriteTo(w);
+            }
+        }
+        if (!merged)
+        {
+            w.WriteStartObject();
+            w.WriteString("matcher", "");
+            w.WritePropertyName("hooks");
+            w.WriteStartArray();
+            WriteHookItem(w, command);
+            w.WriteEndArray();
+            w.WriteEndObject();
+        }
         w.WriteEndArray();
     }
 

@@ -21,9 +21,14 @@ public static class LogIngester
             var offset  = queue.GetOffset(filePath);
             var records = parser.Parse(filePath, offset, out var newOffset, agent);
 
-            if (records.Count == 0) return false;
-
-            queue.SetOffset(filePath, newOffset);
+            if (records.Count == 0)
+            {
+                // Advance the offset so the file isn't re-read from the same position
+                // on the next hook invocation (e.g. tool-call-only sessions with no usage).
+                if (newOffset > offset)
+                    queue.SetOffset(filePath, newOffset);
+                return false;
+            }
 
             var batch = new SyncBatch(
                 agent,
@@ -36,7 +41,7 @@ public static class LogIngester
                 ProjectPathResolver.Resolve(filePath)
             );
 
-            queue.Enqueue(batch);
+            queue.SetOffsetAndEnqueue(filePath, newOffset, batch);
             return true;
         }
         catch (Exception ex)
@@ -59,13 +64,6 @@ public static class LogIngester
         {
             if (ProcessFile(file, agent, parser, queue))
                 count++;
-        }
-
-        if (count > 0)
-        {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
         }
 
         return count;
