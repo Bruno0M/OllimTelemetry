@@ -12,9 +12,4 @@
     <PackageReference Include="Microsoft.Data.Sqlite"         Version="10.*" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.*"  />
   </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="..\..\assets\ollim.service.template"    LogicalName="ollim.service.template"    />
-    <EmbeddedResource Include="..\..\assets\com.ollim.plist.template"  LogicalName="com.ollim.plist.template"  />
-  </ItemGroup>
 </Project>
