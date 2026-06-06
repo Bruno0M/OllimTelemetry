@@ -7,6 +7,10 @@ public static class ClaudeHookManager
 {
     private const string HookEvent = "Stop";
 
+    // Claude Code settings.json is JSONC — comments are valid and must not cause parse failures.
+    private static readonly JsonDocumentOptions JsonOpts =
+        new() { CommentHandling = JsonCommentHandling.Skip };
+
     public static string SettingsPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         ".claude", "settings.json");
@@ -16,7 +20,7 @@ public static class ClaudeHookManager
         if (!File.Exists(SettingsPath)) return false;
         try
         {
-            using var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+            using var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath), JsonOpts);
             return HasHook(doc.RootElement, command);
         }
         catch { return false; }
@@ -33,15 +37,16 @@ public static class ClaudeHookManager
             {
                 try
                 {
-                    using var doc = JsonDocument.Parse(existingJson);
+                    using var doc = JsonDocument.Parse(existingJson, JsonOpts);
                     if (HasHook(doc.RootElement, command))
                         return (false, null);
 
                     // Replace a stale ollim hook (e.g. from a previous install path)
-                    // rather than appending a duplicate entry.
+                    // rather than appending a duplicate entry. Reuse the already-parsed
+                    // doc to avoid a second JsonDocument.Parse on the same content.
                     var staleCommand = FindOllimHookCommand(doc.RootElement);
                     if (staleCommand is not null)
-                        existingJson = RemoveHook(existingJson, staleCommand);
+                        existingJson = BuildJson(doc.RootElement, staleCommand, add: false);
                 }
                 catch (JsonException)
                 {
@@ -75,7 +80,7 @@ public static class ClaudeHookManager
         try
         {
             var existingJson = File.ReadAllText(path);
-            using var doc = JsonDocument.Parse(existingJson);
+            using var doc = JsonDocument.Parse(existingJson, JsonOpts);
 
             // Accept exact match first; fall back to any ollim hook so that
             // `ollim stop` still works after the binary was reinstalled to a different path.
@@ -147,13 +152,13 @@ public static class ClaudeHookManager
 
     private static string MergeHook(string existingJson, string command)
     {
-        using var doc = JsonDocument.Parse(existingJson);
+        using var doc = JsonDocument.Parse(existingJson, JsonOpts);
         return BuildJson(doc.RootElement, command, add: true);
     }
 
     private static string RemoveHook(string existingJson, string command)
     {
-        using var doc = JsonDocument.Parse(existingJson);
+        using var doc = JsonDocument.Parse(existingJson, JsonOpts);
         return BuildJson(doc.RootElement, command, add: false);
     }
 
@@ -208,12 +213,20 @@ public static class ClaudeHookManager
         {
             if (prop.Name == HookEvent)
             {
-                w.WritePropertyName(HookEvent);
-                if (add)
-                    WriteGroupsWithAdded(w, prop.Value, command);
+                // When removing: omit the property entirely if no groups survive — avoids "Stop": [].
+                if (!add && !HasRemainingGroups(prop.Value, command))
+                {
+                    wroteEvent = true;
+                }
                 else
-                    WriteGroupsWithRemoved(w, prop.Value, command);
-                wroteEvent = true;
+                {
+                    w.WritePropertyName(HookEvent);
+                    if (add)
+                        WriteGroupsWithAdded(w, prop.Value, command);
+                    else
+                        WriteGroupsWithRemoved(w, prop.Value, command);
+                    wroteEvent = true;
+                }
             }
             else
             {
@@ -228,6 +241,18 @@ public static class ClaudeHookManager
         }
 
         w.WriteEndObject();
+    }
+
+    private static bool HasRemainingGroups(JsonElement existing, string command)
+    {
+        foreach (var group in existing.EnumerateArray())
+        {
+            if (!group.TryGetProperty("hooks", out var items)) return true;
+            if (items.EnumerateArray().Any(h =>
+                    !h.TryGetProperty("command", out var c) || c.GetString() != command))
+                return true;
+        }
+        return false;
     }
 
     private static void WriteGroupsWithAdded(Utf8JsonWriter w, JsonElement existing, string command)

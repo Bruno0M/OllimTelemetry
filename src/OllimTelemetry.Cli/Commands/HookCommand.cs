@@ -1,4 +1,6 @@
 using System.Text.Json;
+using OllimTelemetry.Cli.Update;
+using OllimTelemetry.Core;
 using OllimTelemetry.Core.Config;
 using OllimTelemetry.Core.Ingestion;
 using OllimTelemetry.Core.Parsing;
@@ -9,9 +11,6 @@ namespace OllimTelemetry.Cli.Commands;
 
 internal static class HookCommand
 {
-    private static readonly string ClaudeProjectsRoot = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "projects");
-
     // Always exits 0 — hook failures must never interrupt Claude Code.
     public static async Task<int> RunAsync()
     {
@@ -38,7 +37,8 @@ internal static class HookCommand
             // there may be pre-existing failed batches ready for retry.
             // Timeout kept short so a network hang never stalls Claude Code's shutdown.
             using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            var syncService = new SyncService(configManager, queue, http);
+            var syncService = new SyncService(configManager, queue, http,
+                UpdateChecker.CurrentVersion ?? "unknown");
             await syncService.FlushOnceAsync();
         }
         catch (Exception ex)
@@ -51,7 +51,10 @@ internal static class HookCommand
 
     private static async Task<StopHookInput?> ReadStdinAsync()
     {
-        var json = await Console.In.ReadToEndAsync();
+        // 5-second guard prevents an unexpectedly large stdin pipe from stalling
+        // Claude Code's shutdown sequence while waiting for this hook to exit.
+        using var cts  = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var json = await Console.In.ReadToEndAsync(cts.Token);
         if (string.IsNullOrWhiteSpace(json)) return null;
 
         try
@@ -75,10 +78,10 @@ internal static class HookCommand
             return input.TranscriptPath;
 
         // Fallback: search by session_id filename.
-        if (!string.IsNullOrWhiteSpace(input.SessionId) && Directory.Exists(ClaudeProjectsRoot))
+        if (!string.IsNullOrWhiteSpace(input.SessionId) && Directory.Exists(OllimPaths.ClaudeProjectsRoot))
         {
             var match = Directory.EnumerateFiles(
-                ClaudeProjectsRoot, $"{input.SessionId}.jsonl", SearchOption.AllDirectories)
+                OllimPaths.ClaudeProjectsRoot, $"{input.SessionId}.jsonl", SearchOption.AllDirectories)
                 .FirstOrDefault();
 
             if (match is not null) return match;

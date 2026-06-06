@@ -83,6 +83,40 @@ public sealed class SyncQueue : IDisposable
         cmd.ExecuteNonQuery();
     }
 
+    public void SetOffsetAndEnqueue(string filePath, long offset, SyncBatch batch)
+    {
+        using var tx  = _conn.BeginTransaction();
+        using var off = _conn.CreateCommand();
+        off.Transaction = tx;
+        off.CommandText = """
+            INSERT INTO file_offsets (file_path, byte_offset)
+            VALUES ($p, $o)
+            ON CONFLICT(file_path) DO UPDATE SET byte_offset = excluded.byte_offset;
+            """;
+        off.Parameters.AddWithValue("$p", filePath);
+        off.Parameters.AddWithValue("$o", offset);
+        off.ExecuteNonQuery();
+
+        using var enq = _conn.CreateCommand();
+        enq.Transaction = tx;
+        enq.CommandText = """
+            INSERT INTO pending_batches
+                (agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end, repo_name)
+            VALUES ($agent, $i, $o, $cr, $cw, $ps, $pe, $rn);
+            """;
+        enq.Parameters.AddWithValue("$agent", batch.Agent);
+        enq.Parameters.AddWithValue("$i",     batch.InputTokens);
+        enq.Parameters.AddWithValue("$o",     batch.OutputTokens);
+        enq.Parameters.AddWithValue("$cr",    batch.CacheReadTokens);
+        enq.Parameters.AddWithValue("$cw",    batch.CacheWriteTokens);
+        enq.Parameters.AddWithValue("$ps",    batch.PeriodStart);
+        enq.Parameters.AddWithValue("$pe",    batch.PeriodEnd);
+        enq.Parameters.AddWithValue("$rn",    (object?)batch.RepoName ?? DBNull.Value);
+        enq.ExecuteNonQuery();
+
+        tx.Commit();
+    }
+
     public void Enqueue(SyncBatch batch)
     {
         using var cmd = _conn.CreateCommand();

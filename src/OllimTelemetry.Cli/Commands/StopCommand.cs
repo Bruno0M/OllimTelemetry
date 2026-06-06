@@ -1,4 +1,3 @@
-using OllimTelemetry.Core.Config;
 using OllimTelemetry.Core.Hook;
 using Spectre.Console;
 
@@ -8,8 +7,7 @@ internal static class StopCommand
 {
     public static Task<int> RunAsync()
     {
-        var binaryPath  = Environment.ProcessPath ?? "ollim";
-        var hookCommand = $"{binaryPath} hook";
+        const string hookCommand = "ollim hook";
 
         var (removed, error) = ClaudeHookManager.Uninstall(hookCommand);
 

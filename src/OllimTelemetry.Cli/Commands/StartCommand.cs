@@ -1,4 +1,5 @@
 using OllimTelemetry.Cli.Onboarding;
+using OllimTelemetry.Cli.Update;
 using OllimTelemetry.Core.Config;
 using OllimTelemetry.Core.Hook;
 using OllimTelemetry.Core.Ingestion;
@@ -14,8 +15,7 @@ internal static class StartCommand
     public static async Task<int> RunAsync()
     {
         var configManager = new ConfigManager();
-        var binaryPath    = Environment.ProcessPath ?? "ollim";
-        var hookCommand   = $"{binaryPath} hook";
+        const string hookCommand = "ollim hook";
 
         if (!File.Exists(configManager.ConfigFilePath))
         {
@@ -60,7 +60,8 @@ internal static class StartCommand
             {
                 AnsiConsole.MarkupLine($"[dim]Backfilled {count} session(s) from existing logs.[/]");
                 using var http  = new System.Net.Http.HttpClient();
-                var syncService  = new SyncService(configManager, queue, http);
+                var syncService  = new SyncService(configManager, queue, http,
+                    UpdateChecker.CurrentVersion ?? "unknown");
                 await syncService.FlushOnceAsync();
             }
         }

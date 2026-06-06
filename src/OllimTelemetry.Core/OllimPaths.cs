@@ -21,4 +21,6 @@ public static class OllimPaths
     public static string DbFile     => Path.Combine(DataDir, "queue.db");
 
     public static string LegacyDir  => Path.Combine(Home, ".ollim");
+
+    public static string ClaudeProjectsRoot => Path.Combine(Home, ".claude", "projects");
 }

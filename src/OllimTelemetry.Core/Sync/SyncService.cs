@@ -13,7 +13,7 @@ public sealed class SyncService
     private readonly HttpClient    _http;
     private readonly string        _clientVersion;
 
-    public SyncService(ConfigManager configManager, SyncQueue queue, HttpClient http, string clientVersion = "0.1.0")
+    public SyncService(ConfigManager configManager, SyncQueue queue, HttpClient http, string clientVersion = "0.3.0")
     {
         _configManager = configManager;
         _queue         = queue;

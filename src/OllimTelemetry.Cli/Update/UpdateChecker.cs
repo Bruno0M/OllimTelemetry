@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using OllimTelemetry.Core;
@@ -19,11 +20,33 @@ internal static class UpdateChecker
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
     private const string ApiUrl = "https://api.github.com/repos/Bruno0M/OllimTelemetry/releases/latest";
 
-    private static string? CurrentVersion =>
-        typeof(UpdateChecker).Assembly.GetName().Version?.ToString(3);
+    // AssemblyInformationalVersion carries the NuGet <Version> from the .csproj (e.g. "0.1.0").
+    // AssemblyVersion defaults to "1.0.0.0" and does not track releases.
+    internal static string? CurrentVersion =>
+        typeof(UpdateChecker).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion
+            .Split('+')[0]; // strip build-metadata suffix (e.g. "+abc1234")
 
     // Fire-and-forget — never blocks the command path.
-    internal static void ScheduleRefresh() => Task.Run(RefreshAsync);
+    // Skip when the cached result is still fresh to avoid hitting the GitHub API on every invocation.
+    internal static void ScheduleRefresh()
+    {
+        if (IsCacheFresh()) return;
+        Task.Run(RefreshAsync);
+    }
+
+    private static bool IsCacheFresh()
+    {
+        try
+        {
+            if (!File.Exists(CacheFile)) return false;
+            var cache = JsonSerializer.Deserialize(
+                File.ReadAllText(CacheFile), CliJsonContext.Default.UpdateCheckCache);
+            return cache is not null && DateTimeOffset.UtcNow - cache.CheckedAt <= CacheTtl;
+        }
+        catch { return false; }
+    }
 
     internal static void PrintNoticeIfAvailable(string installMethod)
     {
@@ -77,7 +100,11 @@ internal static class UpdateChecker
             Directory.CreateDirectory(Path.GetDirectoryName(CacheFile)!);
             var cache     = new UpdateCheckCache(DateTimeOffset.UtcNow, version);
             var cacheJson = JsonSerializer.Serialize(cache, CliJsonContext.Default.UpdateCheckCache);
-            await File.WriteAllTextAsync(CacheFile, cacheJson);
+            // Write to a temp file then rename — atomic on Linux so PrintNoticeIfAvailable
+            // always reads a complete file, never partial content from a concurrent write.
+            var tmp = CacheFile + ".tmp";
+            await File.WriteAllTextAsync(tmp, cacheJson);
+            File.Move(tmp, CacheFile, overwrite: true);
         }
         catch { }
     }
