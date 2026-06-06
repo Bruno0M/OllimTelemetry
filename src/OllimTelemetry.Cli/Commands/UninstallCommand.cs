@@ -20,7 +20,9 @@ internal static class UninstallCommand
 
         var binaryPath  = Environment.ProcessPath ?? "ollim";
         var hookCommand = $"{binaryPath} hook";
-        ClaudeHookManager.Uninstall(hookCommand);
+        var (_, hookError) = ClaudeHookManager.Uninstall(hookCommand);
+        if (hookError is not null)
+            AnsiConsole.MarkupLine($"[yellow]![/] Hook removal failed: {hookError}");
 
         foreach (var dir in new[] { OllimPaths.ConfigDir, OllimPaths.DataDir, OllimPaths.LegacyDir })
         {
@@ -28,7 +30,7 @@ internal static class UninstallCommand
                 Directory.Delete(dir, recursive: true);
         }
 
-        AnsiConsole.MarkupLine("[green]✓[/] Hook removed.");
+        AnsiConsole.MarkupLine(hookError is null ? "[green]✓[/] Hook removed." : "[yellow]![/] Hook may still be registered — remove it manually from ~/.claude/settings.json");
         AnsiConsole.MarkupLine("[green]✓[/] All local data removed.");
         AnsiConsole.MarkupLine("[dim]The ollim binary itself was not removed — delete it manually if desired.[/]");
 

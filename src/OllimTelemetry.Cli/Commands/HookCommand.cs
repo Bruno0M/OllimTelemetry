@@ -32,14 +32,14 @@ internal static class HookCommand
             using var queue  = new SyncQueue();
             var parser        = new LogParser();
 
-            var processed = LogIngester.ProcessFile(filePath, config.Agent, parser, queue);
+            LogIngester.ProcessFile(filePath, config.Agent, parser, queue);
 
-            if (processed)
-            {
-                using var http  = new System.Net.Http.HttpClient();
-                var syncService  = new SyncService(configManager, queue, http);
-                await syncService.FlushOnceAsync();
-            }
+            // Flush unconditionally: even if the current session produced no new records,
+            // there may be pre-existing failed batches ready for retry.
+            // Timeout kept short so a network hang never stalls Claude Code's shutdown.
+            using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            var syncService = new SyncService(configManager, queue, http);
+            await syncService.FlushOnceAsync();
         }
         catch (Exception ex)
         {
@@ -69,7 +69,9 @@ internal static class HookCommand
         if (input is null) return null;
 
         // transcript_path is the most direct: Claude Code hands us the exact file.
-        if (!string.IsNullOrWhiteSpace(input.TranscriptPath) && File.Exists(input.TranscriptPath))
+        // Trust it without File.Exists — if the file isn't flushed yet the fallback scan
+        // would O(N) traverse all sessions, which is worse than a graceful parse miss.
+        if (!string.IsNullOrWhiteSpace(input.TranscriptPath))
             return input.TranscriptPath;
 
         // Fallback: search by session_id filename.

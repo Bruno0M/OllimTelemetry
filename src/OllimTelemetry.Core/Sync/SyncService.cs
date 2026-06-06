@@ -33,52 +33,66 @@ public sealed class SyncService
 
         try
         {
-            var batches = _queue.Dequeue(50);
-            if (batches.Count == 0) return;
-
-            var sent   = new List<long>();
-            var failed = new List<long>();
-
-            foreach (var (id, batch) in batches)
+            while (!ct.IsCancellationRequested)
             {
-                if (ct.IsCancellationRequested) break;
+                var batches = _queue.Dequeue(50);
+                if (batches.Count == 0) break;
 
-                var payload = new SubmitPayload(
-                    config.UserId,
-                    batch.Agent,
-                    batch.InputTokens,
-                    batch.OutputTokens,
-                    batch.CacheReadTokens,
-                    batch.CacheWriteTokens,
-                    batch.PeriodStart,
-                    batch.PeriodEnd,
-                    _clientVersion,
-                    config.ShareRepoName ? batch.RepoName : null
-                );
+                var sent   = new List<long>();
+                var failed = new List<long>();
 
-                try
+                foreach (var (id, batch) in batches)
                 {
-                    var content  = JsonContent.Create(payload, ConfigJsonContext.Default.SubmitPayload);
-                    var response = await _http.PostAsync($"{config.BackendUrl}/v1/submit", content, ct);
+                    if (ct.IsCancellationRequested) break;
 
-                    if (response.IsSuccessStatusCode)
-                        sent.Add(id);
-                    else
+                    var payload = new SubmitPayload(
+                        config.UserId,
+                        batch.Agent,
+                        batch.InputTokens,
+                        batch.OutputTokens,
+                        batch.CacheReadTokens,
+                        batch.CacheWriteTokens,
+                        batch.PeriodStart,
+                        batch.PeriodEnd,
+                        _clientVersion,
+                        config.ShareRepoName ? batch.RepoName : null
+                    );
+
+                    try
+                    {
+                        using var reqCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        reqCts.CancelAfter(TimeSpan.FromSeconds(5));
+                        var content  = JsonContent.Create(payload, ConfigJsonContext.Default.SubmitPayload);
+                        var response = await _http.PostAsync($"{config.BackendUrl}/v1/submit", content, reqCts.Token);
+
+                        if (response.IsSuccessStatusCode)
+                            sent.Add(id);
+                        else
+                            failed.Add(id);
+                    }
+                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                    {
+                        // Per-request timeout — treat as a transient failure and let retry handle it.
                         failed.Add(id);
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch
+                    {
+                        failed.Add(id);
+                    }
                 }
-                catch
-                {
-                    failed.Add(id);
-                }
+
+                _queue.MarkSent(sent);
+
+                if (sent.Count > 0)
+                    _configManager.Save(config with { LastSyncAt = DateTime.UtcNow.ToString("O") });
+
+                foreach (var id in failed)
+                    _queue.MarkFailed(id);
+
+                // If every batch in this page failed, the backend is down — stop retrying.
+                if (sent.Count == 0) break;
             }
-
-            if (sent.Count > 0)
-                _configManager.Save(config with { LastSyncAt = DateTime.UtcNow.ToString("O") });
-
-            _queue.MarkSent(sent);
-
-            foreach (var id in failed)
-                _queue.MarkFailed(id);
         }
         catch (Exception ex)
         {
