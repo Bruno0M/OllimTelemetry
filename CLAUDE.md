@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**Ollim Telemetry** is a NativeAOT CLI daemon (`ollim`) that watches Claude Code's local JSONL logs (`~/.claude/projects/**/*.jsonl`), extracts token usage counts, and (with explicit opt-in) submits anonymized data to `api.ollim.dev`. Config and SQLite queue live in `~/.ollim/`.
+**Ollim Telemetry** is a NativeAOT CLI daemon (`ollim`) that watches Claude Code's local JSONL logs (`~/.claude/projects/**/*.jsonl`), extracts token usage counts, and (with explicit opt-in) submits anonymized data to `api.ollim.dev`. Config lives in `~/.config/ollim/` and the SQLite queue in `~/.local/share/ollim/` (XDG Base Directory spec).
 
 ## Commands
 
@@ -15,8 +15,12 @@ dotnet test                               # run all tests (xunit)
 dotnet test --filter "FullyQualifiedName~LogParser"  # run a single test class
 
 # Run the CLI directly (no NativeAOT, fast iteration)
+# launchSettings.json auto-sets OLLIM_ENV=dev, OLLIM_BACKEND_URL, and isolated XDG paths
 dotnet run --project src/OllimTelemetry.Cli -- status
 dotnet run --project src/OllimTelemetry.Cli -- --run-daemon  # run daemon in foreground
+
+# Run daemon in background with log file (dev mode, uses launchSettings.json)
+./scripts/dev.sh                          # tails log after starting; Ctrl+C stops tail, daemon keeps running
 
 # NativeAOT publish (single RID)
 dotnet publish src/OllimTelemetry.Cli/OllimTelemetry.Cli.csproj \
@@ -37,9 +41,9 @@ Cli → Models
 
 - **Models** — pure data records (`TokenUsage`, `SyncBatch`, `SubmitPayload`, `AppConfig`). No dependencies.
 - **Core** — all engine logic. Must never reference Spectre.Console.
-  - `Config/` — `AppConfig` + `ConfigManager` (reads/writes `~/.ollim/config.json` via source-gen JSON)
+  - `Config/` — `AppConfig` + `ConfigManager` (reads/writes `~/.config/ollim/config.json` via source-gen JSON; `OLLIM_BACKEND_URL` env var overrides `BackendUrl` at runtime)
   - `Parsing/LogParser` — JSONL delta reader; takes a byte offset, returns new records and updated offset
-  - `Queue/SyncQueue` — SQLite-backed queue (`~/.ollim/queue.db`); stores file offsets and pending batches
+  - `Queue/SyncQueue` — SQLite-backed queue (`~/.local/share/ollim/queue.db`); stores file offsets and pending batches
   - `Watching/LogWatcher` — wraps `FileSystemWatcher` with 500 ms debounce on `~/.claude/projects/`
   - `Sync/SyncService` — flushes `SyncQueue` to `POST /v1/submit` on a configurable interval with exponential backoff
   - `Daemon/DaemonManager` — installs/removes launchd (macOS) or systemd --user (Linux) service
