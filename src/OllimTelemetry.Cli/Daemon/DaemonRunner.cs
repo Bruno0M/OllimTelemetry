@@ -30,7 +30,9 @@ internal static class DaemonRunner
 
         syncService.Start();
 
-        await Console.Error.WriteLineAsync("[ollim] daemon started");
+        var env = Environment.GetEnvironmentVariable("OLLIM_ENV");
+        var envLabel = env == "dev" ? " [dev mode]" : "";
+        await Console.Error.WriteLineAsync($"[ollim] daemon started{envLabel}");
 
         try
         {
@@ -89,6 +91,7 @@ internal static class DaemonRunner
             );
 
             queue.Enqueue(batch);
+            Console.Error.WriteLine($"[ollim] queued {records.Count} record(s) from {Path.GetFileName(filePath)}");
         }
         catch (Exception ex)
         {

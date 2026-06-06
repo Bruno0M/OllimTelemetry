@@ -7,24 +7,21 @@ internal static class ConfigCommand
 {
     public static Task<int> RunAsync()
     {
-        var editor     = Environment.GetEnvironmentVariable("EDITOR");
-        var configPath = ConfigManager.DefaultConfigFilePath;
+        var editor = Environment.GetEnvironmentVariable("VISUAL")
+                  ?? Environment.GetEnvironmentVariable("EDITOR")
+                  ?? "vi";
 
-        if (!string.IsNullOrWhiteSpace(editor))
+        var manager    = new ConfigManager();
+        manager.LoadOrCreate();
+        var configPath = manager.ConfigFilePath;
+
+        using var proc = new System.Diagnostics.Process();
+        proc.StartInfo = new System.Diagnostics.ProcessStartInfo(editor, configPath)
         {
-            using var proc = new System.Diagnostics.Process();
-            proc.StartInfo = new System.Diagnostics.ProcessStartInfo(editor, configPath)
-            {
-                UseShellExecute = false
-            };
-            proc.Start();
-            proc.WaitForExit();
-        }
-        else
-        {
-            AnsiConsole.MarkupLine($"Config path: [bold]{configPath}[/]");
-            AnsiConsole.MarkupLine("[dim]Set $EDITOR to open it automatically.[/]");
-        }
+            UseShellExecute = false
+        };
+        proc.Start();
+        proc.WaitForExit();
 
         return Task.FromResult(0);
     }

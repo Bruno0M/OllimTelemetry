@@ -17,15 +17,24 @@ public sealed class ConfigManager
 
     public AppConfig LoadOrCreate()
     {
+        AppConfig config;
+
         if (!File.Exists(_configPath))
         {
-            var fresh = new AppConfig();
-            Save(fresh);
-            return fresh;
+            config = new AppConfig();
+            Save(config);
+        }
+        else
+        {
+            var json = File.ReadAllText(_configPath);
+            config = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.AppConfig) ?? new AppConfig();
         }
 
-        var json = File.ReadAllText(_configPath);
-        return JsonSerializer.Deserialize(json, ConfigJsonContext.Default.AppConfig) ?? new AppConfig();
+        var backendUrlOverride = Environment.GetEnvironmentVariable("OLLIM_BACKEND_URL");
+        if (!string.IsNullOrWhiteSpace(backendUrlOverride))
+            config = config with { BackendUrl = backendUrlOverride };
+
+        return config;
     }
 
     public void Save(AppConfig config)

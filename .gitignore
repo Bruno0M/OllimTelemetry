@@ -41,3 +41,6 @@ coverage/
 # Specs and plans (local dev artifacts)
 .specs/
 docs/
+
+# Local dev environment overrides
+.env

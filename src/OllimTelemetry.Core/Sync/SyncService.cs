@@ -64,6 +64,8 @@ public sealed class SyncService
             var batches = _queue.Dequeue(50);
             if (batches.Count == 0) return;
 
+            await Console.Error.WriteLineAsync($"[ollim] syncing {batches.Count} batch(es) to {config.BackendUrl}");
+
             var sent   = new List<long>();
             var failed = new List<long>();
 
@@ -108,6 +110,8 @@ public sealed class SyncService
 
             foreach (var id in failed)
                 _queue.MarkFailed(id);
+
+            await Console.Error.WriteLineAsync($"[ollim] sync done: {sent.Count} sent, {failed.Count} failed");
         }
         catch (Exception ex)
         {

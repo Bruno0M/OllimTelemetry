@@ -15,7 +15,10 @@ internal static class StatusCommand
 
         var running = daemonManager.IsRunning();
 
-        AnsiConsole.Write(new Rule("[bold]Ollim Telemetry Status[/]").RuleStyle("grey"));
+        var isDev = Environment.GetEnvironmentVariable("OLLIM_ENV") == "dev";
+        var title = isDev ? "[bold]Ollim Telemetry Status[/] [yellow][[dev]][/]" : "[bold]Ollim Telemetry Status[/]";
+
+        AnsiConsole.Write(new Rule(title).RuleStyle("grey"));
         AnsiConsole.WriteLine();
 
         AnsiConsole.MarkupLine($"  Daemon:       {(running ? "[green]running[/]" : "[red]stopped[/]")}");
