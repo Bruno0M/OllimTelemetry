@@ -15,13 +15,16 @@ internal static class StartCommand
     public static async Task<int> RunAsync()
     {
         var configManager = new ConfigManager();
-        const string hookCommand = "ollim hook";
+        var binaryPath    = Environment.ProcessPath ?? "ollim";
+        var hookCommand   = $"{binaryPath} hook";
+
+        using var queue = new SyncQueue();
 
         if (!File.Exists(configManager.ConfigFilePath))
         {
             var flow = new OnboardingFlow(configManager);
             flow.Run(hookCommand);
-            await BackfillAndSyncAsync(configManager);
+            await BackfillAndSyncAsync(configManager, queue);
             return 0;
         }
 
@@ -38,36 +41,25 @@ internal static class StartCommand
             AnsiConsole.MarkupLine("[dim]Hook already registered.[/]");
 
         // First run: no offsets stored yet → backfill historical sessions.
-        using var queue = new SyncQueue();
         if (!queue.HasAnyOffsets())
             await BackfillAndSyncAsync(configManager, queue);
 
         return 0;
     }
 
-    private static async Task BackfillAndSyncAsync(ConfigManager configManager, SyncQueue? existingQueue = null)
+    private static async Task BackfillAndSyncAsync(ConfigManager configManager, SyncQueue queue)
     {
         var config = configManager.LoadOrCreate();
         var parser = new LogParser();
 
-        SyncQueue? owned = existingQueue is null ? new SyncQueue() : null;
-        var queue = existingQueue ?? owned!;
-
-        try
+        var count = LogIngester.BackfillAll(config.Agent, parser, queue);
+        if (count > 0)
         {
-            var count = LogIngester.BackfillAll(config.Agent, parser, queue);
-            if (count > 0)
-            {
-                AnsiConsole.MarkupLine($"[dim]Backfilled {count} session(s) from existing logs.[/]");
-                using var http  = new System.Net.Http.HttpClient();
-                var syncService  = new SyncService(configManager, queue, http,
-                    UpdateChecker.CurrentVersion ?? "unknown");
-                await syncService.FlushOnceAsync();
-            }
-        }
-        finally
-        {
-            owned?.Dispose();
+            AnsiConsole.MarkupLine($"[dim]Backfilled {count} session(s) from existing logs.[/]");
+            using var http  = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            var syncService  = new SyncService(configManager, queue, http,
+                UpdateChecker.CurrentVersion ?? "unknown");
+            await syncService.FlushOnceAsync();
         }
     }
 }

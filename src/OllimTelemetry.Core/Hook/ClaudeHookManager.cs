@@ -102,6 +102,8 @@ public static class ClaudeHookManager
         }
     }
 
+    // ── helpers ───────────────────────────────────────────────────────────────
+
     private static bool HasHook(JsonElement root, string command)
     {
         if (!root.TryGetProperty("hooks", out var hooks)) return false;

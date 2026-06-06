@@ -6,7 +6,6 @@ namespace OllimTelemetry.Core.Ingestion;
 
 public static class LogIngester
 {
-
     /// <summary>
     /// Reads the delta from <paramref name="filePath"/> (from stored offset to EOF),
     /// enqueues a SyncBatch if any usage records were found, and returns true if

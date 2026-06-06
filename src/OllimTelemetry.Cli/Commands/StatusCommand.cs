@@ -11,7 +11,9 @@ internal static class StatusCommand
     {
         var configManager = new ConfigManager();
         var config        = configManager.LoadOrCreate();
-        var hookInstalled = ClaudeHookManager.IsInstalled("ollim hook");
+        var binaryPath    = Environment.ProcessPath ?? "ollim";
+        var hookCommand   = $"{binaryPath} hook";
+        var hookInstalled = ClaudeHookManager.IsInstalled(hookCommand);
 
         var isDev  = Environment.GetEnvironmentVariable("OLLIM_ENV") == "dev";
         var title  = isDev ? "[bold]Ollim Telemetry Status[/] [yellow][[dev]][/]" : "[bold]Ollim Telemetry Status[/]";
@@ -26,8 +28,10 @@ internal static class StatusCommand
         AnsiConsole.WriteLine();
 
         using var queue   = new SyncQueue();
-        var pending        = queue.Dequeue(1000);
-        AnsiConsole.MarkupLine($"  Pending batches: [dim]{pending.Count}[/]");
+        var sessions       = queue.CountTrackedFiles();
+        var pending        = queue.CountPending();
+        AnsiConsole.MarkupLine($"  Sessions tracked: [dim]{sessions}[/]");
+        AnsiConsole.MarkupLine($"  Pending batches:  [dim]{pending}[/]");
 
         if (!hookInstalled)
         {

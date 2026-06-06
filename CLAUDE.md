@@ -17,7 +17,8 @@ dotnet test --filter "FullyQualifiedName~LogParser"  # run a single test class
 # Run the CLI directly (no NativeAOT, fast iteration)
 # launchSettings.json auto-sets OLLIM_ENV=dev, OLLIM_BACKEND_URL, and isolated XDG paths
 dotnet run --project src/OllimTelemetry.Cli -- status
-dotnet run --project src/OllimTelemetry.Cli -- --run-daemon  # run daemon in foreground
+dotnet run --project src/OllimTelemetry.Cli -- start   # registers the Stop hook + backfills
+dotnet run --project src/OllimTelemetry.Cli -- hook    # simulate a Stop hook invocation (reads stdin)
 
 # Run daemon in background with log file (dev mode, uses launchSettings.json)
 ./scripts/dev.sh                          # tails log after starting; Ctrl+C stops tail, daemon keeps running
@@ -45,12 +46,13 @@ Cli → Models
   - `Parsing/LogParser` — JSONL delta reader; takes a byte offset, returns new records and updated offset
   - `Queue/SyncQueue` — SQLite-backed queue (`~/.local/share/ollim/queue.db`); stores file offsets and pending batches
   - `Watching/LogWatcher` — wraps `FileSystemWatcher` with 500 ms debounce on `~/.claude/projects/`
-  - `Sync/SyncService` — flushes `SyncQueue` to `POST /v1/submit` on a configurable interval with exponential backoff
-  - `Daemon/DaemonManager` — installs/removes launchd (macOS) or systemd --user (Linux) service
+  - `Sync/SyncService` — single-pass flush (`FlushOnceAsync`) of `SyncQueue` to `POST /v1/submit` with exponential backoff
+  - `Hook/ClaudeHookManager` — reads/writes `~/.claude/settings.json` to register/unregister the Stop hook
+  - `Ingestion/LogIngester` — processes a single JSONL file delta or backfills all files under `~/.claude/projects/`
 - **Cli** — entry point, ConsoleAppFramework routing, all terminal I/O
-  - `Program.cs` — `--run-daemon` flag triggers `DaemonRunner.RunAsync`; otherwise routes to commands
-  - `Commands/` — one static class per verb (`start`, `stop`, `status`, `config`, `stats`, `leaderboard`, `unlink`, `uninstall`)
-  - `Daemon/DaemonRunner` — backfills existing JSONL files on startup, starts watcher + sync service
+  - `Program.cs` — routes verbs to commands via ConsoleAppFramework
+  - `Commands/` — one static class per verb (`start`, `stop`, `status`, `config`, `stats`, `leaderboard`, `unlink`, `uninstall`, `hook`)
+  - `Commands/HookCommand` — invoked by Claude Code's Stop hook; reads stdin JSON, processes the JSONL file, flushes queue
 
 ## Key constraints
 

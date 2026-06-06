@@ -18,7 +18,9 @@ internal static class UninstallCommand
             return Task.FromResult(0);
         }
 
-        var (_, hookError) = ClaudeHookManager.Uninstall("ollim hook");
+        var binaryPath  = Environment.ProcessPath ?? "ollim";
+        var hookCommand = $"{binaryPath} hook";
+        var (_, hookError) = ClaudeHookManager.Uninstall(hookCommand);
         if (hookError is not null)
             AnsiConsole.MarkupLine($"[yellow]![/] Hook removal failed: {hookError}");
 
