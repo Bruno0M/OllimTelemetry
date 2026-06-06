@@ -13,11 +13,6 @@
     <TrimmerRootDescriptor>TrimmerRoots.xml</TrimmerRootDescriptor>
   </PropertyGroup>
 
-  <!-- $ORIGIN tells the Linux dynamic linker to search next to the binary for libe_sqlite3.so -->
-  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('linux'))">
-    <LinkerArg Include="-Wl,-rpath,$ORIGIN" />
-  </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\OllimTelemetry.Core\OllimTelemetry.Core.csproj"     />
     <ProjectReference Include="..\OllimTelemetry.Models\OllimTelemetry.Models.csproj" />
