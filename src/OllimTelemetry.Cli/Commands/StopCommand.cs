@@ -1,4 +1,5 @@
-using OllimTelemetry.Core.Daemon;
+using OllimTelemetry.Core.Config;
+using OllimTelemetry.Core.Hook;
 using Spectre.Console;
 
 namespace OllimTelemetry.Cli.Commands;
@@ -7,14 +8,22 @@ internal static class StopCommand
 {
     public static Task<int> RunAsync()
     {
-        var daemonManager = new DaemonManager();
-        var (success, message) = daemonManager.Unregister();
+        var binaryPath  = Environment.ProcessPath ?? "ollim";
+        var hookCommand = $"{binaryPath} hook";
 
-        if (success)
-            AnsiConsole.MarkupLine("[green]✓[/] Daemon stopped.");
+        var (removed, error) = ClaudeHookManager.Uninstall(hookCommand);
+
+        if (error is not null)
+        {
+            AnsiConsole.MarkupLine($"[red]✗[/] {error}");
+            return Task.FromResult(1);
+        }
+
+        if (removed)
+            AnsiConsole.MarkupLine("[green]✓[/] Hook removed from ~/.claude/settings.json");
         else
-            AnsiConsole.MarkupLine($"[red]✗[/] {message}");
+            AnsiConsole.MarkupLine("[dim]Hook was not installed — nothing to remove.[/]");
 
-        return Task.FromResult(success ? 0 : 1);
+        return Task.FromResult(0);
     }
 }

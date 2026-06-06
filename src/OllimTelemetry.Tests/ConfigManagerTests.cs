@@ -21,8 +21,7 @@ public sealed class ConfigManagerTests : IDisposable
 
         Assert.False(config.ShareGlobal);
         Assert.False(config.ShareRepoName);
-        Assert.Equal(1,            config.Version);
-        Assert.Equal(5,            config.SyncIntervalMinutes);
+        Assert.Equal(1,             config.Version);
         Assert.Equal("claude-code", config.Agent);
         Assert.NotNull(config.UserId);
         Assert.Null(config.LastSyncAt);
@@ -34,15 +33,14 @@ public sealed class ConfigManagerTests : IDisposable
     public void Save_ThenLoad_RoundTrips()
     {
         var manager  = Manager();
-        var original = new AppConfig { ShareGlobal = true, SyncIntervalMinutes = 10, LastSyncAt = "2026-01-01T00:00:00Z" };
+        var original = new AppConfig { ShareGlobal = true, LastSyncAt = "2026-01-01T00:00:00Z" };
 
         manager.Save(original);
         var loaded = manager.LoadOrCreate();
 
-        Assert.Equal(original.ShareGlobal,         loaded.ShareGlobal);
-        Assert.Equal(original.SyncIntervalMinutes, loaded.SyncIntervalMinutes);
-        Assert.Equal(original.LastSyncAt,          loaded.LastSyncAt);
-        Assert.Equal(original.UserId,              loaded.UserId);
+        Assert.Equal(original.ShareGlobal, loaded.ShareGlobal);
+        Assert.Equal(original.LastSyncAt,  loaded.LastSyncAt);
+        Assert.Equal(original.UserId,      loaded.UserId);
     }
 
     [Fact]

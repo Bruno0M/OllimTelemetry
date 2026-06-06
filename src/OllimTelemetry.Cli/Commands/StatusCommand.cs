@@ -1,5 +1,5 @@
 using OllimTelemetry.Core.Config;
-using OllimTelemetry.Core.Daemon;
+using OllimTelemetry.Core.Hook;
 using OllimTelemetry.Core.Queue;
 using Spectre.Console;
 
@@ -10,28 +10,32 @@ internal static class StatusCommand
     public static Task<int> RunAsync()
     {
         var configManager = new ConfigManager();
-        var daemonManager = new DaemonManager();
         var config        = configManager.LoadOrCreate();
+        var binaryPath    = Environment.ProcessPath ?? "ollim";
+        var hookCommand   = $"{binaryPath} hook";
+        var hookInstalled = ClaudeHookManager.IsInstalled(hookCommand);
 
-        var running = daemonManager.IsRunning();
-
-        var isDev = Environment.GetEnvironmentVariable("OLLIM_ENV") == "dev";
-        var title = isDev ? "[bold]Ollim Telemetry Status[/] [yellow][[dev]][/]" : "[bold]Ollim Telemetry Status[/]";
+        var isDev  = Environment.GetEnvironmentVariable("OLLIM_ENV") == "dev";
+        var title  = isDev ? "[bold]Ollim Telemetry Status[/] [yellow][[dev]][/]" : "[bold]Ollim Telemetry Status[/]";
 
         AnsiConsole.Write(new Rule(title).RuleStyle("grey"));
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine($"  Daemon:       {(running ? "[green]running[/]" : "[red]stopped[/]")}");
+        AnsiConsole.MarkupLine($"  Hook:         {(hookInstalled ? "[green]active[/]" : "[red]not installed[/]")}");
         AnsiConsole.MarkupLine($"  Sharing:      {(config.ShareGlobal ? "[green]enabled[/]" : "[yellow]disabled[/]")}");
-        AnsiConsole.MarkupLine($"  Sync every:   [dim]{config.SyncIntervalMinutes} minutes[/]");
         AnsiConsole.MarkupLine($"  Last sync:    [dim]{config.LastSyncAt ?? "never"}[/]");
 
         AnsiConsole.WriteLine();
 
-        using var queue = new SyncQueue();
-        var pending = queue.Dequeue(1000);
-
+        using var queue   = new SyncQueue();
+        var pending        = queue.Dequeue(1000);
         AnsiConsole.MarkupLine($"  Pending batches: [dim]{pending.Count}[/]");
+
+        if (!hookInstalled)
+        {
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine("  [yellow]Run [bold]`ollim start`[/] to register the Claude Code hook.[/]");
+        }
 
         return Task.FromResult(0);
     }

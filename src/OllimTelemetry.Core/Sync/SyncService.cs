@@ -13,9 +13,6 @@ public sealed class SyncService
     private readonly HttpClient    _http;
     private readonly string        _clientVersion;
 
-    private CancellationTokenSource? _cts;
-    private Task?                     _loopTask;
-
     public SyncService(ConfigManager configManager, SyncQueue queue, HttpClient http, string clientVersion = "0.1.0")
     {
         _configManager = configManager;
@@ -24,94 +21,78 @@ public sealed class SyncService
         _clientVersion = clientVersion;
     }
 
-    public void Start()
+    /// <summary>
+    /// Performs a single sync pass: drains the queue and POSTs to the backend.
+    /// Skips silently if ShareGlobal is disabled. HTTP failures are caught and
+    /// logged — the batch stays in SQLite for the next call.
+    /// </summary>
+    public async Task FlushOnceAsync(CancellationToken ct = default)
     {
-        _cts      = new CancellationTokenSource();
-        _loopTask = Task.Run(() => RunLoop(_cts.Token));
-    }
+        var config = _configManager.LoadOrCreate();
+        if (!config.ShareGlobal) return;
 
-    public async Task StopAsync()
-    {
-        if (_cts is null) return;
-        await _cts.CancelAsync();
-        if (_loopTask is not null)
-        {
-            try { await _loopTask; } catch (OperationCanceledException) { }
-        }
-    }
-
-    private async Task RunLoop(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            var config = _configManager.LoadOrCreate();
-            var delay  = TimeSpan.FromMinutes(config.SyncIntervalMinutes);
-
-            try { await Task.Delay(delay, ct); }
-            catch (OperationCanceledException) { break; }
-
-            if (!config.ShareGlobal)
-                continue;
-
-            await TrySyncAsync(config, ct);
-        }
-    }
-
-    private async Task TrySyncAsync(AppConfig config, CancellationToken ct)
-    {
         try
         {
-            var batches = _queue.Dequeue(50);
-            if (batches.Count == 0) return;
-
-            await Console.Error.WriteLineAsync($"[ollim] syncing {batches.Count} batch(es) to {config.BackendUrl}");
-
-            var sent   = new List<long>();
-            var failed = new List<long>();
-
-            foreach (var (id, batch) in batches)
+            while (!ct.IsCancellationRequested)
             {
-                if (ct.IsCancellationRequested) break;
+                var batches = _queue.Dequeue(50);
+                if (batches.Count == 0) break;
 
-                var payload = new SubmitPayload(
-                    config.UserId,
-                    batch.Agent,
-                    batch.InputTokens,
-                    batch.OutputTokens,
-                    batch.CacheReadTokens,
-                    batch.CacheWriteTokens,
-                    batch.PeriodStart,
-                    batch.PeriodEnd,
-                    _clientVersion,
-                    config.ShareRepoName ? batch.RepoName : null
-                );
+                var sent   = new List<long>();
+                var failed = new List<long>();
 
-                try
+                foreach (var (id, batch) in batches)
                 {
-                    var content  = JsonContent.Create(payload, ConfigJsonContext.Default.SubmitPayload);
-                    var response = await _http.PostAsync($"{config.BackendUrl}/v1/submit", content, ct);
+                    if (ct.IsCancellationRequested) break;
 
-                    if (response.IsSuccessStatusCode)
-                        sent.Add(id);
-                    else
+                    var payload = new SubmitPayload(
+                        config.UserId,
+                        batch.Agent,
+                        batch.InputTokens,
+                        batch.OutputTokens,
+                        batch.CacheReadTokens,
+                        batch.CacheWriteTokens,
+                        batch.PeriodStart,
+                        batch.PeriodEnd,
+                        _clientVersion,
+                        config.ShareRepoName ? batch.RepoName : null
+                    );
+
+                    try
+                    {
+                        using var reqCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        reqCts.CancelAfter(TimeSpan.FromSeconds(5));
+                        var content  = JsonContent.Create(payload, ConfigJsonContext.Default.SubmitPayload);
+                        var response = await _http.PostAsync($"{config.BackendUrl}/v1/submit", content, reqCts.Token);
+
+                        if (response.IsSuccessStatusCode)
+                            sent.Add(id);
+                        else
+                            failed.Add(id);
+                    }
+                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                    {
+                        // Per-request timeout — treat as a transient failure and let retry handle it.
                         failed.Add(id);
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch
+                    {
+                        failed.Add(id);
+                    }
                 }
-                catch
-                {
-                    failed.Add(id);
-                }
-            }
 
-            if (sent.Count > 0)
-            {
                 _queue.MarkSent(sent);
-                _configManager.Save(config with { LastSyncAt = DateTime.UtcNow.ToString("O") });
+
+                if (sent.Count > 0)
+                    _configManager.Save(config with { LastSyncAt = DateTime.UtcNow.ToString("O") });
+
+                foreach (var id in failed)
+                    _queue.MarkFailed(id);
+
+                // If every batch in this page failed, the backend is down — stop retrying.
+                if (sent.Count == 0) break;
             }
-
-            foreach (var id in failed)
-                _queue.MarkFailed(id);
-
-            await Console.Error.WriteLineAsync($"[ollim] sync done: {sent.Count} sent, {failed.Count} failed");
         }
         catch (Exception ex)
         {
