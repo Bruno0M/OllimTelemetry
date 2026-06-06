@@ -1,6 +1,5 @@
 using OllimTelemetry.Core;
-using OllimTelemetry.Core.Config;
-using OllimTelemetry.Core.Daemon;
+using OllimTelemetry.Core.Hook;
 using Spectre.Console;
 
 namespace OllimTelemetry.Cli.Commands;
@@ -10,7 +9,7 @@ internal static class UninstallCommand
     public static Task<int> RunAsync()
     {
         var confirmed = AnsiConsole.Confirm(
-            "[red]This will remove the daemon, config, and all local data. Continue?[/]",
+            "[red]This will remove the hook, config, and all local data. Continue?[/]",
             defaultValue: false);
 
         if (!confirmed)
@@ -19,8 +18,9 @@ internal static class UninstallCommand
             return Task.FromResult(0);
         }
 
-        var daemonManager = new DaemonManager();
-        daemonManager.Unregister();
+        var binaryPath  = Environment.ProcessPath ?? "ollim";
+        var hookCommand = $"{binaryPath} hook";
+        ClaudeHookManager.Uninstall(hookCommand);
 
         foreach (var dir in new[] { OllimPaths.ConfigDir, OllimPaths.DataDir, OllimPaths.LegacyDir })
         {
@@ -28,7 +28,7 @@ internal static class UninstallCommand
                 Directory.Delete(dir, recursive: true);
         }
 
-        AnsiConsole.MarkupLine("[green]✓[/] Daemon stopped and unregistered.");
+        AnsiConsole.MarkupLine("[green]✓[/] Hook removed.");
         AnsiConsole.MarkupLine("[green]✓[/] All local data removed.");
         AnsiConsole.MarkupLine("[dim]The ollim binary itself was not removed — delete it manually if desired.[/]");
 

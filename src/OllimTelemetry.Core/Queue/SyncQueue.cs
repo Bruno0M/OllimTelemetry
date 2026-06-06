@@ -54,6 +54,13 @@ public sealed class SyncQueue : IDisposable
         }
     }
 
+    public bool HasAnyOffsets()
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM file_offsets";
+        return (long)(cmd.ExecuteScalar() ?? 0L) > 0;
+    }
+
     public long GetOffset(string filePath)
     {
         using var cmd = _conn.CreateCommand();

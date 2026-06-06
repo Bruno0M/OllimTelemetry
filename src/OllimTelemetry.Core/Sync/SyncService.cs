@@ -13,9 +13,6 @@ public sealed class SyncService
     private readonly HttpClient    _http;
     private readonly string        _clientVersion;
 
-    private CancellationTokenSource? _cts;
-    private Task?                     _loopTask;
-
     public SyncService(ConfigManager configManager, SyncQueue queue, HttpClient http, string clientVersion = "0.1.0")
     {
         _configManager = configManager;
@@ -24,47 +21,20 @@ public sealed class SyncService
         _clientVersion = clientVersion;
     }
 
-    public void Start()
+    /// <summary>
+    /// Performs a single sync pass: drains the queue and POSTs to the backend.
+    /// Skips silently if ShareGlobal is disabled. HTTP failures are caught and
+    /// logged — the batch stays in SQLite for the next call.
+    /// </summary>
+    public async Task FlushOnceAsync(CancellationToken ct = default)
     {
-        _cts      = new CancellationTokenSource();
-        _loopTask = Task.Run(() => RunLoop(_cts.Token));
-    }
+        var config = _configManager.LoadOrCreate();
+        if (!config.ShareGlobal) return;
 
-    public async Task StopAsync()
-    {
-        if (_cts is null) return;
-        await _cts.CancelAsync();
-        if (_loopTask is not null)
-        {
-            try { await _loopTask; } catch (OperationCanceledException) { }
-        }
-    }
-
-    private async Task RunLoop(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            var config = _configManager.LoadOrCreate();
-            var delay  = TimeSpan.FromMinutes(config.SyncIntervalMinutes);
-
-            try { await Task.Delay(delay, ct); }
-            catch (OperationCanceledException) { break; }
-
-            if (!config.ShareGlobal)
-                continue;
-
-            await TrySyncAsync(config, ct);
-        }
-    }
-
-    private async Task TrySyncAsync(AppConfig config, CancellationToken ct)
-    {
         try
         {
             var batches = _queue.Dequeue(50);
             if (batches.Count == 0) return;
-
-            await Console.Error.WriteLineAsync($"[ollim] syncing {batches.Count} batch(es) to {config.BackendUrl}");
 
             var sent   = new List<long>();
             var failed = new List<long>();
@@ -103,15 +73,12 @@ public sealed class SyncService
             }
 
             if (sent.Count > 0)
-            {
-                _queue.MarkSent(sent);
                 _configManager.Save(config with { LastSyncAt = DateTime.UtcNow.ToString("O") });
-            }
+
+            _queue.MarkSent(sent);
 
             foreach (var id in failed)
                 _queue.MarkFailed(id);
-
-            await Console.Error.WriteLineAsync($"[ollim] sync done: {sent.Count} sent, {failed.Count} failed");
         }
         catch (Exception ex)
         {
