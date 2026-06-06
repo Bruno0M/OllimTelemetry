@@ -61,6 +61,13 @@ public sealed class SyncQueue : IDisposable
         return (long)(cmd.ExecuteScalar() ?? 0L) > 0;
     }
 
+    public long CountTrackedFiles()
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM file_offsets";
+        return (long)(cmd.ExecuteScalar() ?? 0L);
+    }
+
     public long GetOffset(string filePath)
     {
         using var cmd = _conn.CreateCommand();
@@ -81,6 +88,51 @@ public sealed class SyncQueue : IDisposable
         cmd.Parameters.AddWithValue("$p", filePath);
         cmd.Parameters.AddWithValue("$o", offset);
         cmd.ExecuteNonQuery();
+    }
+
+    // Atomically advances the file offset and enqueues the batch.
+    // Using a single transaction prevents the offset from being committed
+    // without the corresponding batch, which would cause records to be skipped.
+    public void SetOffsetAndEnqueue(string filePath, long offset, SyncBatch batch)
+    {
+        using var tx = _conn.BeginTransaction();
+
+        using var offsetCmd = _conn.CreateCommand();
+        offsetCmd.Transaction = tx;
+        offsetCmd.CommandText = """
+            INSERT INTO file_offsets (file_path, byte_offset)
+            VALUES ($p, $o)
+            ON CONFLICT(file_path) DO UPDATE SET byte_offset = excluded.byte_offset;
+            """;
+        offsetCmd.Parameters.AddWithValue("$p", filePath);
+        offsetCmd.Parameters.AddWithValue("$o", offset);
+        offsetCmd.ExecuteNonQuery();
+
+        using var enqCmd = _conn.CreateCommand();
+        enqCmd.Transaction = tx;
+        enqCmd.CommandText = """
+            INSERT INTO pending_batches
+                (agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end, repo_name)
+            VALUES ($agent, $i, $o, $cr, $cw, $ps, $pe, $rn);
+            """;
+        enqCmd.Parameters.AddWithValue("$agent", batch.Agent);
+        enqCmd.Parameters.AddWithValue("$i",     batch.InputTokens);
+        enqCmd.Parameters.AddWithValue("$o",     batch.OutputTokens);
+        enqCmd.Parameters.AddWithValue("$cr",    batch.CacheReadTokens);
+        enqCmd.Parameters.AddWithValue("$cw",    batch.CacheWriteTokens);
+        enqCmd.Parameters.AddWithValue("$ps",    batch.PeriodStart);
+        enqCmd.Parameters.AddWithValue("$pe",    batch.PeriodEnd);
+        enqCmd.Parameters.AddWithValue("$rn",    (object?)batch.RepoName ?? DBNull.Value);
+        enqCmd.ExecuteNonQuery();
+
+        tx.Commit();
+    }
+
+    public int CountPending()
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM pending_batches";
+        return (int)(long)(cmd.ExecuteScalar() ?? 0L);
     }
 
     public void Enqueue(SyncBatch batch)
@@ -165,6 +217,9 @@ public sealed class SyncQueue : IDisposable
 
     public void MarkSent(IEnumerable<long> ids)
     {
+        var list = ids as IReadOnlyList<long> ?? ids.ToList();
+        if (list.Count == 0) return;
+
         using var tx  = _conn.BeginTransaction();
         using var cmd = _conn.CreateCommand();
         cmd.Transaction = tx;
