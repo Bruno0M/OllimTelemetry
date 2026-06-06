@@ -33,7 +33,10 @@ try {
   process.exit(1);
 }
 
-const result = spawnSync(binPath, process.argv.slice(2), { stdio: 'inherit' });
+const result = spawnSync(binPath, process.argv.slice(2), {
+  stdio: 'inherit',
+  env: { ...process.env, OLLIM_INSTALL_METHOD: 'npm' },
+});
 
 if (result.error) {
   process.stderr.write(`ollim: failed to start binary — ${result.error.message}\n`);

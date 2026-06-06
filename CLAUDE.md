@@ -20,6 +20,9 @@ dotnet run --project src/OllimTelemetry.Cli -- status
 dotnet run --project src/OllimTelemetry.Cli -- start   # registers the Stop hook + backfills
 dotnet run --project src/OllimTelemetry.Cli -- hook    # simulate a Stop hook invocation (reads stdin)
 
+# Run daemon in background with log file (dev mode, uses launchSettings.json)
+./scripts/dev.sh                          # tails log after starting; Ctrl+C stops tail, daemon keeps running
+
 # NativeAOT publish (single RID)
 dotnet publish src/OllimTelemetry.Cli/OllimTelemetry.Cli.csproj \
   -c Release -r linux-x64 --self-contained true /p:PublishAot=true -o dist/linux-x64

@@ -6,9 +6,6 @@ namespace OllimTelemetry.Core.Ingestion;
 
 public static class LogIngester
 {
-    private static readonly string WatchPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "projects");
-
     /// <summary>
     /// Reads the delta from <paramref name="filePath"/> (from stored offset to EOF),
     /// enqueues a SyncBatch if any usage records were found, and returns true if
@@ -57,10 +54,10 @@ public static class LogIngester
     /// </summary>
     public static int BackfillAll(string agent, LogParser parser, SyncQueue queue)
     {
-        if (!Directory.Exists(WatchPath)) return 0;
+        if (!Directory.Exists(OllimPaths.ClaudeProjectsRoot)) return 0;
 
         var count = 0;
-        foreach (var file in Directory.EnumerateFiles(WatchPath, "*.jsonl", SearchOption.AllDirectories))
+        foreach (var file in Directory.EnumerateFiles(OllimPaths.ClaudeProjectsRoot, "*.jsonl", SearchOption.AllDirectories))
         {
             if (ProcessFile(file, agent, parser, queue))
                 count++;

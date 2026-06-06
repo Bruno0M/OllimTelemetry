@@ -26,6 +26,7 @@ if (!File.Exists(binary))
 }
 
 var psi = new ProcessStartInfo(binary) { UseShellExecute = false };
+psi.Environment["OLLIM_INSTALL_METHOD"] = "nuget";
 foreach (var arg in args) psi.ArgumentList.Add(arg);
 
 using var proc = new Process { StartInfo = psi };

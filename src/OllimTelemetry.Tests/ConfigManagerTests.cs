@@ -12,7 +12,6 @@ public sealed class ConfigManagerTests : IDisposable
 
     private ConfigManager Manager() => new(_tempDir);
 
-    // AC-03: LoadOrCreate on non-existent path creates config with ShareGlobal=false
     [Fact]
     public void LoadOrCreate_CreatesConfigWithSafeDefaults()
     {
@@ -28,7 +27,6 @@ public sealed class ConfigManagerTests : IDisposable
         Assert.True(File.Exists(manager.ConfigFilePath));
     }
 
-    // AC-03: Save → LoadOrCreate returns equal record
     [Fact]
     public void Save_ThenLoad_RoundTrips()
     {
