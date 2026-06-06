@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using ConsoleAppFramework;
 using OllimTelemetry.Cli.Commands;
 using OllimTelemetry.Cli.Daemon;
+using OllimTelemetry.Cli.Update;
 using OllimTelemetry.Core;
 
 if (XdgMigration.TryMigrate())
@@ -25,6 +26,9 @@ if (args.Contains("--run-daemon"))
     return;
 }
 
+var installMethod = Environment.GetEnvironmentVariable("OLLIM_INSTALL_METHOD") ?? "script";
+UpdateChecker.ScheduleRefresh();
+
 var app = ConsoleApp.Create();
 app.Add("start",       StartCommand.RunAsync);
 app.Add("stop",        StopCommand.RunAsync);
@@ -35,3 +39,5 @@ app.Add("leaderboard", LeaderboardCommand.RunAsync);
 app.Add("unlink",      UnlinkCommand.RunAsync);
 app.Add("uninstall",   UninstallCommand.RunAsync);
 await app.RunAsync(args);
+
+UpdateChecker.PrintNoticeIfAvailable(installMethod);
