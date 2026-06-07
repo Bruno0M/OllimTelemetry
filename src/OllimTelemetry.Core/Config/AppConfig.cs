@@ -10,4 +10,6 @@ public sealed record AppConfig
     public string  BackendUrl    { get; init; } = "https://api.ollim.dev";
     public string  CreatedAt     { get; init; } = DateTime.UtcNow.ToString("O");
     public string? LastSyncAt    { get; init; } = null;
+    public string? GitHubLogin   { get; init; } = null;
+    public string? SessionToken  { get; init; } = null;
 }

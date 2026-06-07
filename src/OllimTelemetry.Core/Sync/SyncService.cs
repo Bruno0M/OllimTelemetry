@@ -1,4 +1,6 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Net;
 using System.Text.Json;
 using OllimTelemetry.Core.Config;
 using OllimTelemetry.Core.Queue;
@@ -31,8 +33,13 @@ public sealed class SyncService
         var config = _configManager.LoadOrCreate();
         if (!config.ShareGlobal) return;
 
+        _http.DefaultRequestHeaders.Authorization = config.SessionToken is not null
+            ? new AuthenticationHeaderValue("Bearer", config.SessionToken)
+            : null;
+
         try
         {
+            bool authExpired = false;
             while (!ct.IsCancellationRequested)
             {
                 var batches = _queue.Dequeue(50);
@@ -65,6 +72,12 @@ public sealed class SyncService
                         var content  = JsonContent.Create(payload, ConfigJsonContext.Default.SubmitPayload);
                         var response = await _http.PostAsync($"{config.BackendUrl}/v1/submit", content, reqCts.Token);
 
+                        if (response.StatusCode == HttpStatusCode.Unauthorized)
+                        {
+                            authExpired = true;
+                            break;
+                        }
+
                         if (response.IsSuccessStatusCode)
                             sent.Add(id);
                         else
@@ -89,6 +102,14 @@ public sealed class SyncService
 
                 foreach (var id in failed)
                     _queue.MarkFailed(id);
+
+                if (authExpired)
+                {
+                    _configManager.Save(config with { SessionToken = null, GitHubLogin = null });
+                    await Console.Error.WriteLineAsync(
+                        "[ollim] session expired — run `ollim link` to re-authenticate");
+                    break;
+                }
 
                 // If every batch in this page failed, the backend is down — stop retrying.
                 if (sent.Count == 0) break;

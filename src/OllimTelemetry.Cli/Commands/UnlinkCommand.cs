@@ -10,9 +10,12 @@ internal static class UnlinkCommand
         var configManager = new ConfigManager();
         var config        = configManager.LoadOrCreate();
 
-        // keep UserId — only disable sharing
-        configManager.Save(config with { ShareGlobal = false });
+        // keep UserId — only disable sharing and clear auth
+        var login = config.GitHubLogin;
+        configManager.Save(config with { ShareGlobal = false, SessionToken = null, GitHubLogin = null });
 
+        if (login is not null)
+            AnsiConsole.MarkupLine($"[dim]Unlinked from @{Markup.Escape(login)}.[/]");
         AnsiConsole.MarkupLine("[green]✓[/] Sharing disabled. Your data will no longer be submitted to the leaderboard.");
         AnsiConsole.MarkupLine("[dim]Your local data and UserId are preserved. Run `ollim start` to re-enable.[/]");
 

@@ -42,6 +42,13 @@ public sealed class ConfigManager
         Directory.CreateDirectory(_configDir);
         var json = JsonSerializer.Serialize(config, ConfigJsonContext.Default.AppConfig);
         File.WriteAllText(_configPath, json);
+
+        if (config.SessionToken is not null &&
+            (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()))
+        {
+            File.SetUnixFileMode(_configPath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
     }
 
     public string ConfigFilePath => _configPath;

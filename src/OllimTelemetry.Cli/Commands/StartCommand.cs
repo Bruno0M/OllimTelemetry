@@ -16,7 +16,7 @@ internal static class StartCommand
     {
         var configManager = new ConfigManager();
         var binaryPath    = Environment.ProcessPath ?? "ollim";
-        var hookCommand   = $"{binaryPath} hook";
+        var hookCommand   = BuildHookCommand(binaryPath);
 
         using var queue = new SyncQueue();
 
@@ -45,6 +45,27 @@ internal static class StartCommand
             await BackfillAndSyncAsync(configManager, queue);
 
         return 0;
+    }
+
+    private static string BuildHookCommand(string binaryPath)
+    {
+        // In dev mode, propagate the current process's isolation env vars into the
+        // registered hook command so Claude Code fires the hook with the same context.
+        static string? Env(string key) => Environment.GetEnvironmentVariable(key);
+
+        var ollimEnv  = Env("OLLIM_ENV");
+        if (ollimEnv != "dev")
+            return $"{binaryPath} hook";
+
+        var parts = new System.Text.StringBuilder();
+        foreach (var key in new[] { "OLLIM_ENV", "OLLIM_BACKEND_URL", "XDG_CONFIG_HOME", "XDG_DATA_HOME" })
+        {
+            var val = Env(key);
+            if (!string.IsNullOrEmpty(val))
+                parts.Append($"{key}={val} ");
+        }
+        parts.Append($"{binaryPath} hook");
+        return parts.ToString();
     }
 
     private static async Task BackfillAndSyncAsync(ConfigManager configManager, SyncQueue queue)

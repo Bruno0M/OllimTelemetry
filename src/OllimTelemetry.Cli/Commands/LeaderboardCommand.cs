@@ -32,7 +32,7 @@ internal static class LeaderboardCommand
                 return 0;
             }
 
-            RenderTable(data, config.UserId);
+            RenderTable(data, config);
         }
         catch
         {
@@ -42,7 +42,7 @@ internal static class LeaderboardCommand
         return 0;
     }
 
-    private static void RenderTable(LeaderboardResponse data, string userId)
+    private static void RenderTable(LeaderboardResponse data, AppConfig config)
     {
         var table = new Table()
             .AddColumn(new TableColumn("Rank").RightAligned())
@@ -52,12 +52,18 @@ internal static class LeaderboardCommand
 
         foreach (var entry in data.Entries)
         {
-            var shortId = entry.UserId.Length >= 8 ? entry.UserId[..8] : entry.UserId;
-            var isMe    = entry.UserId == userId;
-            var rank    = isMe ? $"[bold green]{entry.Rank}[/]"          : $"{entry.Rank}";
-            var user    = isMe ? $"[bold green]{shortId}...[/]"          : $"{shortId}...";
-            var tokens  = isMe ? $"[bold green]{entry.TotalTokens:N0}[/]" : $"{entry.TotalTokens:N0}";
-            var repo    = entry.RepoName is not null ? Markup.Escape(entry.RepoName) : "[dim]-[/]";
+            var isMe = config.GitHubLogin is not null
+                ? entry.GitHubLogin == config.GitHubLogin
+                : entry.UserId == config.UserId;
+
+            var displayUser = entry.GitHubLogin is not null
+                ? $"@{Markup.Escape(entry.GitHubLogin)}"
+                : (entry.UserId.Length >= 8 ? $"{entry.UserId[..8]}..." : entry.UserId);
+
+            var rank   = isMe ? $"[bold green]{entry.Rank}[/]"              : $"{entry.Rank}";
+            var user   = isMe ? $"[bold green]{displayUser}[/]"             : displayUser;
+            var tokens = isMe ? $"[bold green]{entry.TotalTokens:N0}[/]"    : $"{entry.TotalTokens:N0}";
+            var repo   = entry.RepoName is not null ? Markup.Escape(entry.RepoName) : "[dim]-[/]";
 
             table.AddRow(rank, user, tokens, repo);
         }

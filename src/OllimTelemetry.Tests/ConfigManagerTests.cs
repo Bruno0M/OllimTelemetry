@@ -63,4 +63,23 @@ public sealed class ConfigManagerTests : IDisposable
 
         Assert.True(File.Exists(Path.Combine(dir, "config.json")));
     }
+
+    [Fact]
+    public void Save_ThenLoad_RoundTrips_SessionTokenAndGitHubLogin()
+    {
+        var manager  = Manager();
+        var original = new AppConfig
+        {
+            ShareGlobal  = true,
+            SessionToken = "tok-abc123",
+            GitHubLogin  = "testuser",
+        };
+
+        manager.Save(original);
+        var loaded = manager.LoadOrCreate();
+
+        Assert.Equal(original.SessionToken, loaded.SessionToken);
+        Assert.Equal(original.GitHubLogin,  loaded.GitHubLogin);
+        Assert.Equal(original.UserId,       loaded.UserId);
+    }
 }

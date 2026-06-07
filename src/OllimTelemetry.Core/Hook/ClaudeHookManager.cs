@@ -26,6 +26,19 @@ public static class ClaudeHookManager
         catch { return false; }
     }
 
+    // Returns true when any ollim hook is registered, regardless of binary path or env var prefix.
+    // Used by status display — exact command match is too brittle across installs/dev modes.
+    public static bool IsAnyOllimHookInstalled()
+    {
+        if (!File.Exists(SettingsPath)) return false;
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath), JsonOpts);
+            return FindOllimHookCommand(doc.RootElement) is not null;
+        }
+        catch { return false; }
+    }
+
     public static (bool Changed, string? Error) Install(string command)
     {
         try
@@ -140,14 +153,31 @@ public static class ClaudeHookManager
         return null;
     }
 
-    // Matches any "ollim hook" invocation regardless of the binary's install path.
+    // Matches any "ollim hook" invocation regardless of binary path or leading env var assignments
+    // (e.g. "OLLIM_ENV=dev XDG_CONFIG_HOME=/tmp/ollim-dev /path/to/ollim hook").
     private static bool IsOllimHookCommand(string? command)
     {
         if (command is null) return false;
-        var binaryPart = command.Split(' ')[0];
-        var fileName   = Path.GetFileNameWithoutExtension(binaryPart);
+
+        // Find the binary token by skipping leading KEY=VALUE env var assignments.
+        var binaryPart = command
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(t => !IsEnvVarToken(t));
+
+        if (binaryPart is null) return false;
+        var fileName = Path.GetFileNameWithoutExtension(binaryPart);
         return string.Equals(fileName, "ollim", StringComparison.OrdinalIgnoreCase)
             && command.TrimEnd().EndsWith(" hook", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Returns true for tokens like "OLLIM_ENV=dev" or "XDG_CONFIG_HOME=/tmp/foo".
+    // Env var keys contain only word chars (no path separators).
+    private static bool IsEnvVarToken(string token)
+    {
+        var eq = token.IndexOf('=');
+        if (eq <= 0) return false;
+        var key = token[..eq];
+        return key.All(c => char.IsLetterOrDigit(c) || c == '_');
     }
 
     private static string MergeHook(string existingJson, string command)

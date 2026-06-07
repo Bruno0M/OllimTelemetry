@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\OllimTelemetry.Cli\OllimTelemetry.Cli.csproj" />
     <ProjectReference Include="..\OllimTelemetry.Core\OllimTelemetry.Core.csproj" />
     <ProjectReference Include="..\OllimTelemetry.Models\OllimTelemetry.Models.csproj" />
   </ItemGroup>
