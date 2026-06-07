@@ -78,10 +78,12 @@ internal static class LinkCommand
             {
                 while (DateTime.UtcNow < deadline)
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(device.Interval));
-
                     var poll = await TryPollAsync(http, config.BackendUrl, device.DeviceCode);
-                    if (poll is null) continue;
+                    if (poll is null)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(device.Interval));
+                        continue;
+                    }
 
                     if (poll.Status == "complete"
                         && poll.SessionToken is not null
@@ -104,6 +106,7 @@ internal static class LinkCommand
                     }
 
                     // "pending" or unknown — keep polling
+                    await Task.Delay(TimeSpan.FromSeconds(device.Interval));
                 }
 
                 errMsg = "timed out waiting for authorization. Run `ollim link` again.";
@@ -128,6 +131,7 @@ internal static class LinkCommand
                 new LinkPollRequest(deviceCode),
                 CliJsonContext.Default.LinkPollRequest);
             var response = await http.PostAsync($"{baseUrl}/auth/device/poll", content);
+            if (!response.IsSuccessStatusCode) return null;
             return await response.Content.ReadFromJsonAsync(CliJsonContext.Default.LinkPollResponse);
         }
         catch { return null; }

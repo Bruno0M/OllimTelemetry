@@ -27,17 +27,24 @@ public static class ClaudeHookManager
     }
 
     // Returns true when any ollim hook is registered, regardless of binary path or env var prefix.
-    // Used by status display — exact command match is too brittle across installs/dev modes.
-    public static bool IsAnyOllimHookInstalled()
+    // Pass currentEnv so a dev-mode hook isn't reported as active in a prod status check.
+    public static bool IsAnyOllimHookInstalled(string? currentEnv = null)
     {
         if (!File.Exists(SettingsPath)) return false;
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath), JsonOpts);
-            return FindOllimHookCommand(doc.RootElement) is not null;
+            var cmd = FindOllimHookCommand(doc.RootElement);
+            if (cmd is null) return false;
+            if (currentEnv != "dev" && IsDevHookCommand(cmd)) return false;
+            return true;
         }
         catch { return false; }
     }
+
+    private static bool IsDevHookCommand(string command) =>
+        command.StartsWith("OLLIM_ENV=dev ", StringComparison.Ordinal)
+        || command.Contains(" OLLIM_ENV=dev ", StringComparison.Ordinal);
 
     public static (bool Changed, string? Error) Install(string command)
     {
@@ -154,30 +161,21 @@ public static class ClaudeHookManager
     }
 
     // Matches any "ollim hook" invocation regardless of binary path or leading env var assignments
-    // (e.g. "OLLIM_ENV=dev XDG_CONFIG_HOME=/tmp/ollim-dev /path/to/ollim hook").
+    // (e.g. "OLLIM_ENV=dev XDG_CONFIG_HOME='/path/with spaces' /path/to/ollim hook").
+    // Uses LastIndexOf rather than Split so shell-quoted values with spaces don't confuse parsing.
     private static bool IsOllimHookCommand(string? command)
     {
         if (command is null) return false;
+        var trimmed = command.TrimEnd();
+        if (!trimmed.EndsWith(" hook", StringComparison.OrdinalIgnoreCase)) return false;
 
-        // Find the binary token by skipping leading KEY=VALUE env var assignments.
-        var binaryPart = command
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .FirstOrDefault(t => !IsEnvVarToken(t));
+        // The token immediately before " hook" is the binary path.
+        var withoutHook = trimmed[..^" hook".Length].TrimEnd();
+        var lastSpace   = withoutHook.LastIndexOf(' ');
+        var binaryPart  = lastSpace < 0 ? withoutHook : withoutHook[(lastSpace + 1)..];
 
-        if (binaryPart is null) return false;
-        var fileName = Path.GetFileNameWithoutExtension(binaryPart);
-        return string.Equals(fileName, "ollim", StringComparison.OrdinalIgnoreCase)
-            && command.TrimEnd().EndsWith(" hook", StringComparison.OrdinalIgnoreCase);
-    }
-
-    // Returns true for tokens like "OLLIM_ENV=dev" or "XDG_CONFIG_HOME=/tmp/foo".
-    // Env var keys contain only word chars (no path separators).
-    private static bool IsEnvVarToken(string token)
-    {
-        var eq = token.IndexOf('=');
-        if (eq <= 0) return false;
-        var key = token[..eq];
-        return key.All(c => char.IsLetterOrDigit(c) || c == '_');
+        return string.Equals(Path.GetFileNameWithoutExtension(binaryPart), "ollim",
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static string MergeHook(string existingJson, string command)

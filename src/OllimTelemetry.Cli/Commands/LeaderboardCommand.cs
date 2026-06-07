@@ -52,7 +52,7 @@ internal static class LeaderboardCommand
 
         foreach (var entry in data.Entries)
         {
-            var isMe = config.GitHubLogin is not null
+            var isMe = config.GitHubLogin is not null && entry.GitHubLogin is not null
                 ? entry.GitHubLogin == config.GitHubLogin
                 : entry.UserId == config.UserId;
 

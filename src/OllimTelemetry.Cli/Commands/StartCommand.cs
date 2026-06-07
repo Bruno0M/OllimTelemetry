@@ -57,12 +57,14 @@ internal static class StartCommand
         if (ollimEnv != "dev")
             return $"{binaryPath} hook";
 
+        static string ShellQuote(string val) => "'" + val.Replace("'", "'\\''") + "'";
+
         var parts = new System.Text.StringBuilder();
         foreach (var key in new[] { "OLLIM_ENV", "OLLIM_BACKEND_URL", "XDG_CONFIG_HOME", "XDG_DATA_HOME" })
         {
             var val = Env(key);
             if (!string.IsNullOrEmpty(val))
-                parts.Append($"{key}={val} ");
+                parts.Append($"{key}={ShellQuote(val)} ");
         }
         parts.Append($"{binaryPath} hook");
         return parts.ToString();

@@ -12,4 +12,6 @@ public sealed record AppConfig
     public string? LastSyncAt    { get; init; } = null;
     public string? GitHubLogin   { get; init; } = null;
     public string? SessionToken  { get; init; } = null;
+
+    public AppConfig WithAuthCleared() => this with { SessionToken = null, GitHubLogin = null };
 }

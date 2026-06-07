@@ -12,7 +12,7 @@ internal static class UnlinkCommand
 
         // keep UserId — only disable sharing and clear auth
         var login = config.GitHubLogin;
-        configManager.Save(config with { ShareGlobal = false, SessionToken = null, GitHubLogin = null });
+        configManager.Save(config.WithAuthCleared() with { ShareGlobal = false });
 
         if (login is not null)
             AnsiConsole.MarkupLine($"[dim]Unlinked from @{Markup.Escape(login)}.[/]");

@@ -41,13 +41,19 @@ public sealed class ConfigManager
     {
         Directory.CreateDirectory(_configDir);
         var json = JsonSerializer.Serialize(config, ConfigJsonContext.Default.AppConfig);
-        File.WriteAllText(_configPath, json);
 
-        if (config.SessionToken is not null &&
-            (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()))
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
         {
-            File.SetUnixFileMode(_configPath,
-                UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            // Write to a temp file and set permissions before the atomic rename so the
+            // final path is never world-readable (fixes TOCTOU on first write and on link).
+            var tmp = _configPath + ".tmp";
+            File.WriteAllText(tmp, json);
+            File.SetUnixFileMode(tmp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            File.Move(tmp, _configPath, overwrite: true);
+        }
+        else
+        {
+            File.WriteAllText(_configPath, json);
         }
     }
 
