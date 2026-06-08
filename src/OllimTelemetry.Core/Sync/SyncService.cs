@@ -1,4 +1,6 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Net;
 using System.Text.Json;
 using OllimTelemetry.Core.Config;
 using OllimTelemetry.Core.Queue;
@@ -33,6 +35,7 @@ public sealed class SyncService
 
         try
         {
+            bool authExpired = false;
             while (!ct.IsCancellationRequested)
             {
                 var batches = _queue.Dequeue(50);
@@ -63,7 +66,18 @@ public sealed class SyncService
                         using var reqCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                         reqCts.CancelAfter(TimeSpan.FromSeconds(5));
                         var content  = JsonContent.Create(payload, ConfigJsonContext.Default.SubmitPayload);
-                        var response = await _http.PostAsync($"{config.BackendUrl}/v1/submit", content, reqCts.Token);
+                        // Per-request Authorization avoids mutating shared DefaultRequestHeaders
+                        // (not thread-safe) and prevents the header leaking to future endpoints.
+                        using var req = new HttpRequestMessage(HttpMethod.Post, $"{config.BackendUrl}/v1/submit") { Content = content };
+                        if (config.SessionToken is not null)
+                            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.SessionToken);
+                        var response = await _http.SendAsync(req, reqCts.Token);
+
+                        if (response.StatusCode == HttpStatusCode.Unauthorized)
+                        {
+                            authExpired = true;
+                            break;
+                        }
 
                         if (response.IsSuccessStatusCode)
                             sent.Add(id);
@@ -85,10 +99,23 @@ public sealed class SyncService
                 _queue.MarkSent(sent);
 
                 if (sent.Count > 0)
-                    _configManager.Save(config with { LastSyncAt = DateTime.UtcNow.ToString("O") });
+                {
+                    config = config with { LastSyncAt = DateTime.UtcNow.ToString("O") };
+                    _configManager.Save(config);
+                }
 
                 foreach (var id in failed)
                     _queue.MarkFailed(id);
+
+                if (authExpired)
+                {
+                    // Don't wipe the token on first 401 — a momentary 401 (rate-limit,
+                    // clock skew) would force the user to re-link unnecessarily. The
+                    // unsubmitted batch stays in the queue for the next flush attempt.
+                    await Console.Error.WriteLineAsync(
+                        "[ollim] session expired — run `ollim link` to re-authenticate");
+                    break;
+                }
 
                 // If every batch in this page failed, the backend is down — stop retrying.
                 if (sent.Count == 0) break;

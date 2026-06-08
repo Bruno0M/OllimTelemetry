@@ -11,11 +11,8 @@ internal static class StatusCommand
     {
         var configManager = new ConfigManager();
         var config        = configManager.LoadOrCreate();
-        var binaryPath    = Environment.ProcessPath ?? "ollim";
-        var hookCommand   = $"{binaryPath} hook";
-        var hookInstalled = ClaudeHookManager.IsInstalled(hookCommand);
-
         var isDev  = Environment.GetEnvironmentVariable("OLLIM_ENV") == "dev";
+        var hookInstalled = ClaudeHookManager.IsAnyOllimHookInstalled(isDev ? "dev" : null);
         var title  = isDev ? "[bold]Ollim Telemetry Status[/] [yellow][[dev]][/]" : "[bold]Ollim Telemetry Status[/]";
 
         AnsiConsole.Write(new Rule(title).RuleStyle("grey"));

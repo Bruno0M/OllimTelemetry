@@ -26,6 +26,26 @@ public static class ClaudeHookManager
         catch { return false; }
     }
 
+    // Returns true when any ollim hook is registered, regardless of binary path or env var prefix.
+    // Pass currentEnv so a dev-mode hook isn't reported as active in a prod status check.
+    public static bool IsAnyOllimHookInstalled(string? currentEnv = null)
+    {
+        if (!File.Exists(SettingsPath)) return false;
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath), JsonOpts);
+            var cmd = FindOllimHookCommand(doc.RootElement);
+            if (cmd is null) return false;
+            if (currentEnv != "dev" && IsDevHookCommand(cmd)) return false;
+            return true;
+        }
+        catch { return false; }
+    }
+
+    private static bool IsDevHookCommand(string command) =>
+        command.StartsWith("OLLIM_ENV=dev ", StringComparison.Ordinal)
+        || command.Contains(" OLLIM_ENV=dev ", StringComparison.Ordinal);
+
     public static (bool Changed, string? Error) Install(string command)
     {
         try
@@ -140,14 +160,22 @@ public static class ClaudeHookManager
         return null;
     }
 
-    // Matches any "ollim hook" invocation regardless of the binary's install path.
+    // Matches any "ollim hook" invocation regardless of binary path or leading env var assignments
+    // (e.g. "OLLIM_ENV=dev XDG_CONFIG_HOME='/path/with spaces' /path/to/ollim hook").
+    // Uses LastIndexOf rather than Split so shell-quoted values with spaces don't confuse parsing.
     private static bool IsOllimHookCommand(string? command)
     {
         if (command is null) return false;
-        var binaryPart = command.Split(' ')[0];
-        var fileName   = Path.GetFileNameWithoutExtension(binaryPart);
-        return string.Equals(fileName, "ollim", StringComparison.OrdinalIgnoreCase)
-            && command.TrimEnd().EndsWith(" hook", StringComparison.OrdinalIgnoreCase);
+        var trimmed = command.TrimEnd();
+        if (!trimmed.EndsWith(" hook", StringComparison.OrdinalIgnoreCase)) return false;
+
+        // The token immediately before " hook" is the binary path.
+        var withoutHook = trimmed[..^" hook".Length].TrimEnd();
+        var lastSpace   = withoutHook.LastIndexOf(' ');
+        var binaryPart  = lastSpace < 0 ? withoutHook : withoutHook[(lastSpace + 1)..];
+
+        return string.Equals(Path.GetFileNameWithoutExtension(binaryPart), "ollim",
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static string MergeHook(string existingJson, string command)
