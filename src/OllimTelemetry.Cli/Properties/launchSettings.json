@@ -5,8 +5,8 @@
       "environmentVariables": {
         "OLLIM_ENV": "dev",
         "OLLIM_BACKEND_URL": "http://localhost:5000",
-        "XDG_CONFIG_HOME": "/tmp/ollim-dev",
-        "XDG_DATA_HOME": "/tmp/ollim-dev"
+        "XDG_CONFIG_HOME": "/home/bruno/.local/share/ollim-dev",
+        "XDG_DATA_HOME": "/home/bruno/.local/share/ollim-dev"
       }
     }
   }
