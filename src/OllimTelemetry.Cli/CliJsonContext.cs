@@ -10,7 +10,6 @@ namespace OllimTelemetry.Cli;
 [JsonSerializable(typeof(StopHookInput))]
 [JsonSerializable(typeof(UpdateCheckCache))]
 [JsonSerializable(typeof(GitHubRelease))]
-[JsonSerializable(typeof(LinkDeviceResponse))]
-[JsonSerializable(typeof(LinkPollRequest))]
-[JsonSerializable(typeof(LinkPollResponse))]
+[JsonSerializable(typeof(CliInitResponse))]
+[JsonSerializable(typeof(CliPollResponse))]
 internal partial class CliJsonContext : JsonSerializerContext { }
