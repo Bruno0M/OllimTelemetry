@@ -207,8 +207,12 @@ jobs:
           done
           # ollim-telemetry-darwin-x64 temporarily disabled
           # npm publish npm/ollim-telemetry-darwin-x64/ollim-telemetry-darwin-x64-$VERSION.tgz --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish npm main package
         run: |
           VERSION=${{ steps.ver.outputs.value }}
           npm publish npm/ollim-telemetry/ollim-telemetry-$VERSION.tgz --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
