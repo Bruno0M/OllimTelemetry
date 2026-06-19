@@ -92,6 +92,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -202,16 +203,12 @@ jobs:
         run: |
           VERSION=${{ steps.ver.outputs.value }}
           for pkg in ollim-telemetry-linux-x64 ollim-telemetry-linux-arm64 ollim-telemetry-darwin-arm64; do
-            npm publish npm/$pkg/$pkg-$VERSION.tgz --access public
+            npm publish npm/$pkg/$pkg-$VERSION.tgz --access public --provenance
           done
           # ollim-telemetry-darwin-x64 temporarily disabled
-          # npm publish npm/ollim-telemetry-darwin-x64/ollim-telemetry-darwin-x64-$VERSION.tgz --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # npm publish npm/ollim-telemetry-darwin-x64/ollim-telemetry-darwin-x64-$VERSION.tgz --access public --provenance
 
       - name: Publish npm main package
         run: |
           VERSION=${{ steps.ver.outputs.value }}
-          npm publish npm/ollim-telemetry/ollim-telemetry-$VERSION.tgz --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm publish npm/ollim-telemetry/ollim-telemetry-$VERSION.tgz --access public --provenance
