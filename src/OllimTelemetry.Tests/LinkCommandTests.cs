@@ -44,13 +44,16 @@ public sealed class LinkCommandTests : IDisposable
         }
     }
 
-    private static readonly object DeviceOk = new
+    // First response from POST /auth/init
+    private static readonly object InitOk = new
     {
-        device_code      = "dc123",
-        user_code        = "ABCD-EFGH",
-        verification_uri = "https://github.com/login/device",
-        interval         = 0,   // no delay in tests
+        state_token      = "st_abc123",
+        verification_url = "http://localhost:5173/auth?state=st_abc123",
+        expires_in       = 600,
     };
+
+    // Skips browser opening in tests.
+    private static readonly Action<string> NoBrowser = _ => { };
 
     // ── tests ─────────────────────────────────────────────────────────────────
 
@@ -62,7 +65,7 @@ public sealed class LinkCommandTests : IDisposable
         var manager    = Manager();
         var config     = new AppConfig { BackendUrl = "https://api.ollim.dev" };
 
-        var result = await LinkCommand.ExecuteAsync(http, manager, config, "dev", TimeSpan.FromMinutes(5));
+        var result = await LinkCommand.ExecuteAsync(http, manager, config, "dev", TimeSpan.FromMinutes(5), NoBrowser);
 
         Assert.Equal(1, result);
         Assert.Equal(0, handler.CallCount);
@@ -72,7 +75,7 @@ public sealed class LinkCommandTests : IDisposable
     public async Task ExecuteAsync_HappyPath_SavesConfigAndReturnsZero()
     {
         var handler = new FakeHandler();
-        handler.Enqueue(JsonOk(DeviceOk));
+        handler.Enqueue(JsonOk(InitOk));
         handler.Enqueue(JsonOk(new { status = "pending" }));
         handler.Enqueue(JsonOk(new { status = "pending" }));
         handler.Enqueue(JsonOk(new { status = "complete", session_token = "tok123", github_login = "testuser" }));
@@ -81,7 +84,7 @@ public sealed class LinkCommandTests : IDisposable
         var manager    = Manager();
         var config     = new AppConfig { BackendUrl = "http://localhost:5000" };
 
-        var result = await LinkCommand.ExecuteAsync(http, manager, config, null, TimeSpan.FromMinutes(5));
+        var result = await LinkCommand.ExecuteAsync(http, manager, config, null, TimeSpan.FromMinutes(5), NoBrowser);
 
         Assert.Equal(0, result);
         var saved = manager.LoadOrCreate();
@@ -94,14 +97,14 @@ public sealed class LinkCommandTests : IDisposable
     public async Task ExecuteAsync_Expired_ReturnsOne()
     {
         var handler = new FakeHandler();
-        handler.Enqueue(JsonOk(DeviceOk));
+        handler.Enqueue(JsonOk(InitOk));
         handler.Enqueue(JsonOk(new { status = "expired" }));
 
         using var http = new HttpClient(handler);
         var manager    = Manager();
         var config     = new AppConfig { BackendUrl = "http://localhost:5000" };
 
-        var result = await LinkCommand.ExecuteAsync(http, manager, config, null, TimeSpan.FromMinutes(5));
+        var result = await LinkCommand.ExecuteAsync(http, manager, config, null, TimeSpan.FromMinutes(5), NoBrowser);
 
         Assert.Equal(1, result);
         Assert.Null(manager.LoadOrCreate().SessionToken);
@@ -111,16 +114,15 @@ public sealed class LinkCommandTests : IDisposable
     public async Task ExecuteAsync_Timeout_ReturnsOne()
     {
         var handler = new FakeHandler();
-        handler.Enqueue(JsonOk(DeviceOk));
+        handler.Enqueue(JsonOk(InitOk));
         handler.SetDefault(() => JsonOk(new { status = "pending" }));
 
         using var http = new HttpClient(handler);
         var manager    = Manager();
         var config     = new AppConfig { BackendUrl = "http://localhost:5000" };
 
-        // maxWait so short the loop exits before getting a complete
         var result = await LinkCommand.ExecuteAsync(
-            http, manager, config, null, TimeSpan.FromMilliseconds(50));
+            http, manager, config, null, TimeSpan.FromMilliseconds(50), NoBrowser);
 
         Assert.Equal(1, result);
         Assert.Null(manager.LoadOrCreate().SessionToken);
