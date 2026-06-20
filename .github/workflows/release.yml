@@ -59,7 +59,7 @@ jobs:
             -r ${{ matrix.rid }} \
             --self-contained true \
             /p:PublishAot=true \
-            /p:AssemblyVersion=${{ steps.ver.outputs.value }} \
+            /p:Version=${{ steps.ver.outputs.value }} \
             -o dist/${{ matrix.rid }}
 
       - name: Upload binary artifact
