@@ -8,9 +8,10 @@ internal static class UninstallCommand
 {
     public static Task<int> RunAsync()
     {
-        var confirmed = AnsiConsole.Confirm(
-            "[red]This will remove the hook, config, and all local data. Continue?[/]",
-            defaultValue: false);
+        var confirmed = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("[red]This will remove the hook, config, and all local data. Continue?[/]")
+                .AddChoices("No", "Yes")) == "Yes";
 
         if (!confirmed)
         {

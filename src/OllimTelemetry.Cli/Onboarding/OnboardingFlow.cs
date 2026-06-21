@@ -21,9 +21,10 @@ public sealed class OnboardingFlow
         AnsiConsole.MarkupLine("it on a global leaderboard — [italic]anonymously[/], with your permission.");
         AnsiConsole.WriteLine();
 
-        var shareGlobal = AnsiConsole.Confirm(
-            "[bold]Share your token counts on the global leaderboard?[/]\n  [dim]Only counts are sent. Never message content.[/]",
-            defaultValue: false);
+        var shareGlobal = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("[bold]Share your token counts on the global leaderboard?[/]\n  [dim]Only counts are sent. Never message content.[/]")
+                .AddChoices("No", "Yes")) == "Yes";
 
         AnsiConsole.WriteLine();
 

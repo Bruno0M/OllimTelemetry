@@ -10,6 +10,6 @@
   <ItemGroup>
     <ProjectReference Include="..\OllimTelemetry.Models\OllimTelemetry.Models.csproj" />
     <PackageReference Include="Microsoft.Data.Sqlite"         Version="10.*" />
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.*"  />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.*" />
   </ItemGroup>
 </Project>

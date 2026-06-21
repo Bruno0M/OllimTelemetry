@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <!-- GHSA-2m69-gcr7-jv3q: SQLitePCLRaw.lib.e_sqlite3 2.1.11 bundles a vulnerable SQLite.
+         No 2.x patch exists; Microsoft.Data.Sqlite 10.x caps SQLitePCLRaw at <3.0.0.
+         Risk is negligible: the database is local and app-generated — no external SQL input. -->
+    <NuGetAuditSuppress>https://github.com/advisories/GHSA-2m69-gcr7-jv3q</NuGetAuditSuppress>
+    <NoWarn>$(NoWarn);NU1903</NoWarn>
+  </PropertyGroup>
+</Project>

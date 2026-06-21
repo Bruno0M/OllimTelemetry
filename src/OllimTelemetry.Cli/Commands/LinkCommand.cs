@@ -37,9 +37,10 @@ internal static class LinkCommand
         // Confirm before re-linking.
         if (config.SessionToken is not null)
         {
-            var relink = AnsiConsole.Confirm(
-                $"Already linked as [bold]@{Markup.Escape(config.GitHubLogin ?? "unknown")}[/]. Re-link?",
-                defaultValue: false);
+            var relink = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title($"Already linked as [bold]@{Markup.Escape(config.GitHubLogin ?? "unknown")}[/]. Re-link?")
+                    .AddChoices("No", "Yes")) == "Yes";
             if (!relink) return 0;
         }
 
