@@ -12,6 +12,7 @@ namespace OllimTelemetry.Cli.Commands;
 
 internal static class StartCommand
 {
+    /// <summary>Register the Claude Code hook and start tracking token usage.</summary>
     public static async Task<int> RunAsync()
     {
         var configManager = new ConfigManager();

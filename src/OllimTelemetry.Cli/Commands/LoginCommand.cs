@@ -8,6 +8,7 @@ namespace OllimTelemetry.Cli.Commands;
 
 internal static class LoginCommand
 {
+    /// <summary>Authenticate with GitHub to enable leaderboard sharing.</summary>
     public static async Task<int> RunAsync()
     {
         var configManager = new ConfigManager();

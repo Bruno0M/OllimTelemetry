@@ -8,6 +8,7 @@ namespace OllimTelemetry.Cli.Commands;
 
 internal static class StopCommand
 {
+    /// <summary>Unregister the Claude Code hook and stop tracking token usage.</summary>
     public static async Task<int> RunAsync()
     {
         var configManager = new ConfigManager();

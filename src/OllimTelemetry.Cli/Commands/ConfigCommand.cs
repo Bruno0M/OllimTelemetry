@@ -5,6 +5,7 @@ namespace OllimTelemetry.Cli.Commands;
 
 internal static class ConfigCommand
 {
+    /// <summary>Open the ollim config file in your default editor.</summary>
     public static Task<int> RunAsync()
     {
         var editor = Environment.GetEnvironmentVariable("VISUAL")

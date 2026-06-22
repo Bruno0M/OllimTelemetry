@@ -7,6 +7,7 @@ namespace OllimTelemetry.Cli.Commands;
 
 internal static class StatusCommand
 {
+    /// <summary>Show current hook status, sharing settings, and pending sync info.</summary>
     public static Task<int> RunAsync()
     {
         var configManager = new ConfigManager();

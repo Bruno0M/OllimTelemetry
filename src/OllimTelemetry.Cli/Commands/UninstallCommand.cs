@@ -6,6 +6,7 @@ namespace OllimTelemetry.Cli.Commands;
 
 internal static class UninstallCommand
 {
+    /// <summary>Remove the hook, config, and all local data.</summary>
     public static Task<int> RunAsync()
     {
         var confirmed = AnsiConsole.Prompt(

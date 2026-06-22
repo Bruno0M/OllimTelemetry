@@ -5,6 +5,7 @@ namespace OllimTelemetry.Cli.Commands;
 
 internal static class LogoutCommand
 {
+    /// <summary>Revoke GitHub authentication and disable leaderboard sharing.</summary>
     public static Task<int> RunAsync()
     {
         var configManager = new ConfigManager();
