@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using ConsoleAppFramework;
 using OllimTelemetry.Core.Config;
 using OllimTelemetry.Models;
 using Spectre.Console;
@@ -7,6 +8,7 @@ namespace OllimTelemetry.Cli.Commands;
 
 internal static class LeaderboardCommand
 {
+    [Hidden]
     public static async Task<int> RunAsync()
     {
         var config = new ConfigManager().LoadOrCreate();

@@ -58,7 +58,8 @@ public sealed class SyncService
                         batch.PeriodStart,
                         batch.PeriodEnd,
                         _clientVersion,
-                        config.ShareRepoName ? batch.RepoName : null
+                        config.ShareRepoName ? batch.RepoName : null,
+                        batch.ModelId
                     );
 
                     try
@@ -113,7 +114,7 @@ public sealed class SyncService
                     // clock skew) would force the user to re-link unnecessarily. The
                     // unsubmitted batch stays in the queue for the next flush attempt.
                     await Console.Error.WriteLineAsync(
-                        "[ollim] session expired — run `ollim link` to re-authenticate");
+                        "[ollim] session expired — run `ollim login` to re-authenticate");
                     break;
                 }
 

@@ -6,5 +6,6 @@ public sealed record TokenUsage(
     long     OutputTokens,
     long     CacheReadTokens,
     long     CacheWriteTokens,
-    DateTime Timestamp
+    DateTime Timestamp,
+    string?  ModelId = null
 );

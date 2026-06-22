@@ -8,5 +8,6 @@ public sealed record SyncBatch(
     long    CacheWriteTokens,
     string  PeriodStart,
     string  PeriodEnd,
-    string? RepoName = null
+    string? RepoName  = null,
+    string? ModelId   = null
 );

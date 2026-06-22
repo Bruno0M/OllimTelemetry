@@ -42,11 +42,16 @@ public sealed class LogParser
             // Usage lives at root.message.usage (Claude Code log format)
             // or at root.usage (future/alternate formats).
             JsonElement usage;
+            string? modelId = null;
             if (root.TryGetProperty("message", out var msg) && msg.TryGetProperty("usage", out usage))
             {
                 // only assistant turns carry billable usage
                 if (!msg.TryGetProperty("role", out var role) || role.GetString() != "assistant")
                     return;
+
+                // PRIVACY: model name only — no content
+                if (msg.TryGetProperty("model", out var modelProp) && modelProp.ValueKind == JsonValueKind.String)
+                    modelId = modelProp.GetString();
             }
             else if (!root.TryGetProperty("usage", out usage))
             {
@@ -63,7 +68,7 @@ public sealed class LogParser
             var cacheWriteTokens = usage.TryGetProperty("cache_creation_input_tokens",   out var cw)  ? cw.GetInt64() : 0; // PRIVACY: usage only
             var cacheReadTokens  = usage.TryGetProperty("cache_read_input_tokens",       out var cr)  ? cr.GetInt64() : 0; // PRIVACY: usage only
 
-            results.Add(new TokenUsage(agent, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, timestamp));
+            results.Add(new TokenUsage(agent, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, timestamp, modelId));
         }
         catch (JsonException)
         {

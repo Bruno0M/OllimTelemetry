@@ -17,8 +17,8 @@ app.Add("config",      ConfigCommand.RunAsync);
 app.Add("stats",       StatsCommand.RunAsync);
 app.Add("leaderboard", LeaderboardCommand.RunAsync);
 app.Add("hook",        HookCommand.RunAsync);
-app.Add("link",        LinkCommand.RunAsync);
-app.Add("unlink",      UnlinkCommand.RunAsync);
+app.Add("login",       LoginCommand.RunAsync);
+app.Add("logout",      LogoutCommand.RunAsync);
 app.Add("uninstall",   UninstallCommand.RunAsync);
 await app.RunAsync(args);
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ConsoleAppFramework;
 using OllimTelemetry.Cli.Update;
 using OllimTelemetry.Core;
 using OllimTelemetry.Core.Config;
@@ -12,6 +13,7 @@ namespace OllimTelemetry.Cli.Commands;
 internal static class HookCommand
 {
     // Always exits 0 — hook failures must never interrupt Claude Code.
+    [Hidden]
     public static async Task<int> RunAsync()
     {
         try

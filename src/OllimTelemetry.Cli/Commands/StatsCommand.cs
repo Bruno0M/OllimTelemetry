@@ -1,3 +1,4 @@
+using ConsoleAppFramework;
 using OllimTelemetry.Core.Queue;
 using Spectre.Console;
 
@@ -5,6 +6,7 @@ namespace OllimTelemetry.Cli.Commands;
 
 internal static class StatsCommand
 {
+    [Hidden]
     public static Task<int> RunAsync()
     {
         using var queue = new SyncQueue();

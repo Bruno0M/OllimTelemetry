@@ -10,5 +10,6 @@ public sealed record SubmitPayload(
     string  PeriodStart,
     string  PeriodEnd,
     string  ClientVersion,
-    string? RepoName = null
+    string? RepoName = null,
+    string? ModelId  = null
 );

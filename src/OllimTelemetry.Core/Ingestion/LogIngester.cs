@@ -27,6 +27,7 @@ public static class LogIngester
                 return false;
             }
 
+            var modelId = records.FirstOrDefault(r => r.ModelId is not null)?.ModelId;
             var batch = new SyncBatch(
                 agent,
                 records.Sum(r => r.InputTokens),
@@ -35,7 +36,8 @@ public static class LogIngester
                 records.Sum(r => r.CacheWriteTokens),
                 records[0].Timestamp.ToString("O"),
                 records[^1].Timestamp.ToString("O"),
-                ProjectPathResolver.Resolve(filePath)
+                ProjectPathResolver.Resolve(filePath),
+                modelId
             );
 
             queue.SetOffsetAndEnqueue(filePath, newOffset, batch);

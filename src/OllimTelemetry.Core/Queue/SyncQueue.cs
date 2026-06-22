@@ -42,15 +42,21 @@ public sealed class SyncQueue : IDisposable
             );
             """;
         cmd.ExecuteNonQuery();
-        try
+        foreach (var ddl in new[] {
+            "ALTER TABLE pending_batches ADD COLUMN repo_name TEXT",
+            "ALTER TABLE pending_batches ADD COLUMN model_id TEXT",
+        })
         {
-            using var alter = _conn.CreateCommand();
-            alter.CommandText = "ALTER TABLE pending_batches ADD COLUMN repo_name TEXT";
-            alter.ExecuteNonQuery();
-        }
-        catch (Microsoft.Data.Sqlite.SqliteException)
-        {
-            // column already exists — idempotent
+            try
+            {
+                using var alter = _conn.CreateCommand();
+                alter.CommandText = ddl;
+                alter.ExecuteNonQuery();
+            }
+            catch (Microsoft.Data.Sqlite.SqliteException)
+            {
+                // column already exists — idempotent
+            }
         }
     }
 
@@ -112,8 +118,8 @@ public sealed class SyncQueue : IDisposable
         enqCmd.Transaction = tx;
         enqCmd.CommandText = """
             INSERT INTO pending_batches
-                (agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end, repo_name)
-            VALUES ($agent, $i, $o, $cr, $cw, $ps, $pe, $rn);
+                (agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end, repo_name, model_id)
+            VALUES ($agent, $i, $o, $cr, $cw, $ps, $pe, $rn, $mid);
             """;
         enqCmd.Parameters.AddWithValue("$agent", batch.Agent);
         enqCmd.Parameters.AddWithValue("$i",     batch.InputTokens);
@@ -123,6 +129,7 @@ public sealed class SyncQueue : IDisposable
         enqCmd.Parameters.AddWithValue("$ps",    batch.PeriodStart);
         enqCmd.Parameters.AddWithValue("$pe",    batch.PeriodEnd);
         enqCmd.Parameters.AddWithValue("$rn",    (object?)batch.RepoName ?? DBNull.Value);
+        enqCmd.Parameters.AddWithValue("$mid",   (object?)batch.ModelId  ?? DBNull.Value);
         enqCmd.ExecuteNonQuery();
 
         tx.Commit();
@@ -140,8 +147,8 @@ public sealed class SyncQueue : IDisposable
         using var cmd = _conn.CreateCommand();
         cmd.CommandText = """
             INSERT INTO pending_batches
-                (agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end, repo_name)
-            VALUES ($agent, $i, $o, $cr, $cw, $ps, $pe, $rn);
+                (agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end, repo_name, model_id)
+            VALUES ($agent, $i, $o, $cr, $cw, $ps, $pe, $rn, $mid);
             """;
         cmd.Parameters.AddWithValue("$agent", batch.Agent);
         cmd.Parameters.AddWithValue("$i",     batch.InputTokens);
@@ -151,6 +158,7 @@ public sealed class SyncQueue : IDisposable
         cmd.Parameters.AddWithValue("$ps",    batch.PeriodStart);
         cmd.Parameters.AddWithValue("$pe",    batch.PeriodEnd);
         cmd.Parameters.AddWithValue("$rn",    (object?)batch.RepoName ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$mid",   (object?)batch.ModelId  ?? DBNull.Value);
         cmd.ExecuteNonQuery();
     }
 
@@ -158,7 +166,7 @@ public sealed class SyncQueue : IDisposable
     {
         using var cmd = _conn.CreateCommand();
         cmd.CommandText = """
-            SELECT id, agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end, repo_name
+            SELECT id, agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end, repo_name, model_id
             FROM pending_batches
             WHERE next_retry_at <= datetime('now')
             ORDER BY id ASC
@@ -179,7 +187,8 @@ public sealed class SyncQueue : IDisposable
                 reader.GetInt64(5),
                 reader.GetString(6),
                 reader.GetString(7),
-                reader.IsDBNull(8) ? null : reader.GetString(8)
+                reader.IsDBNull(8) ? null : reader.GetString(8),
+                reader.IsDBNull(9) ? null : reader.GetString(9)
             );
             results.Add((id, batch));
         }
