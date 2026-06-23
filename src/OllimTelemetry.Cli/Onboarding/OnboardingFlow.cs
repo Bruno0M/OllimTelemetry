@@ -39,6 +39,9 @@ public sealed class OnboardingFlow
             AnsiConsole.MarkupLine($"[red]✗[/] Hook install failed: {error}");
 
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("Run [bold]`ollim status`[/] to confirm the hook is active.");
+        if (shareGlobal)
+            AnsiConsole.MarkupLine("Run [bold]`ollim login`[/] to link your GitHub account and enable syncing.");
+        else
+            AnsiConsole.MarkupLine("Run [bold]`ollim status`[/] to confirm the hook is active.");
     }
 }

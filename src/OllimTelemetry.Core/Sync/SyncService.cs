@@ -33,6 +33,13 @@ public sealed class SyncService
         var config = _configManager.LoadOrCreate();
         if (!config.ShareGlobal) return;
 
+        var isDev = Environment.GetEnvironmentVariable("OLLIM_ENV") == "dev";
+        if (config.SessionToken is null && !isDev)
+        {
+            await Console.Error.WriteLineAsync("[ollim] not authenticated — run `ollim login` to start syncing");
+            return;
+        }
+
         try
         {
             bool authExpired = false;

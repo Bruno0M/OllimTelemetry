@@ -21,6 +21,10 @@ internal static class StatusCommand
 
         AnsiConsole.MarkupLine($"  Hook:         {(hookInstalled ? "[green]active[/]" : "[red]not installed[/]")}");
         AnsiConsole.MarkupLine($"  Sharing:      {(config.ShareGlobal ? "[green]enabled[/]" : "[yellow]disabled[/]")}");
+        if (config.GitHubLogin is not null)
+            AnsiConsole.MarkupLine($"  GitHub:       [dim]@{Markup.Escape(config.GitHubLogin)}[/]");
+        else if (config.ShareGlobal)
+            AnsiConsole.MarkupLine("  GitHub:       [yellow]not linked — run `ollim login` to start syncing[/]");
         AnsiConsole.MarkupLine($"  Last sync:    [dim]{config.LastSyncAt ?? "never"}[/]");
 
         AnsiConsole.WriteLine();
