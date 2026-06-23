@@ -23,36 +23,44 @@ src/
 │   └── LeaderboardResponse.cs     ← Leaderboard API response
 │
 ├── OllimTelemetry.Core/           ← Engine; never references Spectre.Console
+│   ├── OllimPaths.cs              ← XDG path constants (config, data, legacy)
+│   ├── XdgMigration.cs            ← Migrates ~/.ollim → XDG paths on startup
 │   ├── Config/
-│   │   ├── AppConfig.cs           ← Config record (~/.ollim/config.json)
+│   │   ├── AppConfig.cs           ← Config record (~/.config/ollim/config.json)
 │   │   ├── ConfigJsonContext.cs   ← Source-gen JSON context for AppConfig
 │   │   └── ConfigManager.cs      ← Load/save config file
 │   ├── Parsing/
 │   │   ├── LogParser.cs           ← JSONL delta reader; byte-offset based
 │   │   └── ProjectPathResolver.cs ← Derives project name from JSONL file path
 │   ├── Queue/
-│   │   └── SyncQueue.cs           ← SQLite queue (~/.ollim/queue.db)
+│   │   └── SyncQueue.cs           ← SQLite queue (~/.local/share/ollim/queue.db)
 │   ├── Sync/
-│   │   └── SyncService.cs         ← Flush queue → POST /v1/submit (interval + backoff)
-│   ├── Watching/
-│   │   └── LogWatcher.cs          ← FileSystemWatcher + 500ms debounce
-│   └── Daemon/
-│       └── DaemonManager.cs       ← launchd (macOS) / systemd --user (Linux)
+│   │   └── SyncService.cs         ← Flush queue → POST /v1/submit (backoff)
+│   ├── Hook/
+│   │   └── ClaudeHookManager.cs   ← Reads/writes ~/.claude/settings.json Stop hook
+│   └── Ingestion/
+│       └── LogIngester.cs         ← ProcessFile (delta) + BackfillAll (historical)
 │
 └── OllimTelemetry.Cli/            ← Entry point; all terminal I/O lives here
-    ├── Program.cs                 ← --run-daemon flag + ConsoleAppFramework routing
-    ├── Daemon/
-    │   └── DaemonRunner.cs        ← Backfill + watcher + sync orchestration
+    ├── Program.cs                 ← XdgMigration + ConsoleAppFramework routing + update notice
     ├── Commands/
-    │   ├── StartCommand.cs        ← ollim start
-    │   ├── StopCommand.cs         ← ollim stop
+    │   ├── StartCommand.cs        ← ollim start (onboarding + hook install + backfill)
+    │   ├── StopCommand.cs         ← ollim stop (flush + hook uninstall)
     │   ├── StatusCommand.cs       ← ollim status
     │   ├── ConfigCommand.cs       ← ollim config
     │   ├── StatsCommand.cs        ← ollim stats
     │   ├── LeaderboardCommand.cs  ← ollim leaderboard
-    │   ├── UnlinkCommand.cs       ← ollim unlink
+    │   ├── LoginCommand.cs        ← ollim login (GitHub OAuth device flow)
+    │   ├── LogoutCommand.cs       ← ollim logout
+    │   ├── HookCommand.cs         ← ollim hook (invoked by Claude Code Stop event)
+    │   ├── StopHookInput.cs       ← Deserialized stdin from Claude Code Stop event
     │   └── UninstallCommand.cs    ← ollim uninstall
-    ├── Onboarding/                ← First-run opt-in flow
+    ├── Auth/
+    │   └── AuthDtos.cs            ← CliInitResponse, CliPollResponse for GitHub OAuth
+    ├── Onboarding/
+    │   └── OnboardingFlow.cs      ← First-run consent prompt and hook registration
+    ├── Update/
+    │   └── UpdateChecker.cs       ← Background version check; prints notice on exit
     ├── CliJsonContext.cs          ← Source-gen JSON context for CLI serialization
     └── TrimmerRoots.xml           ← NativeAOT trimmer roots
 
@@ -61,7 +69,9 @@ tests/
     ├── LogParserTests.cs
     ├── SyncQueueTests.cs
     ├── ConfigManagerTests.cs
-    └── ProjectPathResolverTests.cs
+    ├── ProjectPathResolverTests.cs
+    ├── SyncServiceAuthTests.cs
+    └── LoginCommandTests.cs
 ```
 
 ## Common Search Patterns
@@ -133,12 +143,13 @@ Glob pattern="src/OllimTelemetry.Tests/*.cs"
 3. If new JSON serialization is needed, add `[JsonSerializable(typeof(X))]` to the correct `*JsonContext.cs`
 4. `Core` must not reference `Spectre.Console` or `ConsoleAppFramework` — verify `.csproj` before adding
 
-### Debugging the daemon flow
+### Debugging the hook flow
 
-1. Entry: `Program.cs` → `--run-daemon` → `DaemonRunner.RunAsync`
-2. Startup backfill: `DaemonRunner.BackfillExistingFiles` → `LogParser.Parse`
-3. Live events: `LogWatcher` fires → `DaemonRunner.ProcessFile` → `SyncQueue.Enqueue`
-4. Flush: `SyncService` interval → `SyncQueue` → `POST /v1/submit`
+1. Entry: Claude Code fires Stop event → `ollim hook` → `HookCommand.RunAsync`
+2. Reads stdin JSON (`StopHookInput`) for `transcript_path` or `session_id`
+3. Processes file delta: `LogIngester.ProcessFile` → `LogParser.Parse` → `SyncQueue.SetOffsetAndEnqueue`
+4. Flush: `SyncService.FlushOnceAsync` → `SyncQueue` → `POST /v1/submit`
+5. Always exits 0 — hook failures must never interrupt Claude Code
 
 ### Debugging JSON / NativeAOT issues
 
@@ -149,14 +160,15 @@ Glob pattern="src/OllimTelemetry.Tests/*.cs"
 ### SQLite / queue issues
 
 1. `src/OllimTelemetry.Core/Queue/SyncQueue.cs` → `EnsureSchema()` for table definitions
-2. DB file: `~/.ollim/queue.db`
+2. DB file: `~/.local/share/ollim/queue.db` (or `$XDG_DATA_HOME/ollim/queue.db`)
 3. `file_offsets` table tracks byte position per JSONL file; `pending_batches` holds unsynced data
 
 ### Configuration issues
 
 1. `src/OllimTelemetry.Core/Config/AppConfig.cs` → field definitions
 2. `src/OllimTelemetry.Core/Config/ConfigManager.cs` → `LoadOrCreate` / `Save`
-3. Config file: `~/.ollim/config.json`
+3. Config file: `~/.config/ollim/config.json` (or `$XDG_CONFIG_HOME/ollim/config.json`)
+4. `XdgMigration.TryMigrate()` in `Program.cs` moves old `~/.ollim/` data to XDG paths on first run
 
 ## Anti-Patterns
 

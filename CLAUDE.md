@@ -47,9 +47,12 @@ Cli → Models
   - `Hook/ClaudeHookManager` — reads/writes `~/.claude/settings.json` to register/unregister the Stop hook
   - `Ingestion/LogIngester` — processes a single JSONL file delta or backfills all files under `~/.claude/projects/`
 - **Cli** — entry point, ConsoleAppFramework routing, all terminal I/O
-  - `Program.cs` — routes verbs to commands via ConsoleAppFramework
-  - `Commands/` — one static class per verb (`start`, `stop`, `status`, `config`, `stats`, `leaderboard`, `link`, `unlink`, `uninstall`, `hook`)
+  - `Program.cs` — runs `XdgMigration`, schedules update check, routes verbs via ConsoleAppFramework, prints update notice on exit
+  - `Commands/` — one static class per verb (`start`, `stop`, `status`, `config`, `stats`, `leaderboard`, `login`, `logout`, `uninstall`, `hook`)
   - `Commands/HookCommand` — invoked by Claude Code's Stop hook; reads stdin JSON, processes the JSONL file, flushes queue
+  - `Auth/AuthDtos.cs` — `CliInitResponse`, `CliPollResponse` for GitHub OAuth flow
+  - `Onboarding/OnboardingFlow` — first-run consent prompt and hook registration
+  - `Update/UpdateChecker` — background version check; prints notice after command completes
 
 ## Key constraints
 

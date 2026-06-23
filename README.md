@@ -1,6 +1,6 @@
 # ollim-telemetry
 
-A lightweight background daemon that watches Claude Code's local logs, tracks your token usage, and (with opt-in) submits anonymized counts to [ollim.dev](https://ollim.dev) for leaderboard comparison.
+A lightweight CLI tool that hooks into Claude Code's Stop event, parses your local token-usage logs, and (with opt-in) submits anonymized counts to [ollim.dev](https://ollim.dev) for leaderboard comparison.
 
 Built with NativeAOT — ~9 MB binary, 23 ms startup, ~10 MB steady-state RAM.
 
@@ -36,46 +36,42 @@ Download from [releases](https://github.com/Bruno0M/OllimTelemetry/releases):
 ## Quick start
 
 ```bash
-ollim start      # first run triggers opt-in flow, then registers as a system service
-ollim status     # show daemon state, sharing settings, pending queue
-ollim stats      # token usage breakdown for the last 7 days
-ollim leaderboard  # community token leaderboard (coming soon)
+ollim start      # first run triggers opt-in flow and registers the Claude Code Stop hook
+ollim status     # show hook state, sharing settings, and pending sync queue
 ```
-
-The daemon registers itself as a **launchd** service on macOS or a **systemd --user** service on Linux, so it survives reboots without any extra configuration.
 
 ## How it works
 
-1. Watches `~/.claude/projects/**/*.jsonl` for new Claude Code log entries
-2. Parses only the `usage` field (input/output/cache tokens) — message content is never read
-3. Accumulates token counts in a local SQLite queue at `~/.local/share/ollim/queue.db`
-4. Periodically (default: every 5 minutes) flushes the queue to `api.ollim.dev` if sharing is enabled
-5. HTTP failures are retried with exponential backoff; the daemon never crashes on network issues
+1. `ollim start` registers itself as a **Stop hook** in `~/.claude/settings.json`
+2. After every Claude Code session, the hook reads only the `usage` field from the JSONL file (input/output/cache tokens) — message content is never read
+4. Counts are stored in a local SQLite queue at `~/.local/share/ollim/queue.db`
+5. The hook then attempts to flush the queue to `api.ollim.dev` if sharing is enabled
+6. HTTP failures are retried with exponential backoff on the next hook invocation — nothing is lost
 
 ## Privacy
 
 - Only token counts are collected: `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`
 - Message content, prompts, and responses are never read or transmitted
 - Sharing is **disabled by default** — the first-run flow asks for explicit consent
+- Sharing requires a GitHub account — run `ollim login` after opting in
 - You can share your repo name for leaderboard context, but it is also opt-in
-- A random `UserId` (UUID) is generated locally; no account or email required
+- A random `UserId` (UUID) is generated locally and linked to your GitHub account
 
 ## Commands
 
 | Command | Description |
 |---|---|
-| `ollim start` | Register daemon as a system service (runs onboarding on first use) |
-| `ollim stop` | Unregister and stop the daemon |
-| `ollim status` | Show daemon state, sharing config, and pending batch count |
-| `ollim stats` | Token usage table for the last 7 days |
-| `ollim leaderboard` | Community leaderboard |
+| `ollim start` | Register the Claude Code Stop hook (runs onboarding on first use, backfills history) |
+| `ollim stop` | Unregister the hook and flush any pending batches |
+| `ollim status` | Show hook state, sharing config, and pending batch count |
+| `ollim login` | Link a GitHub account (required to sync data) |
+| `ollim logout` | Unlink GitHub account and disable leaderboard sharing |
 | `ollim config` | Open `~/.config/ollim/config.json` in `$VISUAL`/`$EDITOR`/`vi` |
-| `ollim unlink` | Disable sharing while keeping local data and UserId |
-| `ollim uninstall` | Stop daemon and delete all local data |
+| `ollim uninstall` | Unregister the hook and delete all local data |
 
 ## Configuration
 
-Config lives at `~/.config/ollim/config.json`:
+Config lives at `~/.config/ollim/config.json` (XDG Base Directory spec):
 
 ```json
 {
@@ -99,8 +95,9 @@ dotnet build
 dotnet test
 
 # Run the CLI without NativeAOT (fast iteration)
-dotnet run --project src/OllimTelemetry.Cli -- status
-dotnet run --project src/OllimTelemetry.Cli -- --run-daemon
+# launchSettings.json auto-sets OLLIM_ENV=dev, OLLIM_BACKEND_URL=http://localhost:5000, and isolated XDG paths (/tmp/ollim-dev)
+dotnet run --project src/OllimTelemetry.Cli --launch-profile dev -- status
+dotnet run --project src/OllimTelemetry.Cli --launch-profile dev -- start
 
 # Publish a NativeAOT binary for a single RID
 dotnet publish src/OllimTelemetry.Cli/OllimTelemetry.Cli.csproj \
