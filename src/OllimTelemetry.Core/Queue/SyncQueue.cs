@@ -45,6 +45,9 @@ public sealed class SyncQueue : IDisposable
         foreach (var ddl in new[] {
             "ALTER TABLE pending_batches ADD COLUMN repo_name TEXT",
             "ALTER TABLE pending_batches ADD COLUMN model_id TEXT",
+            "ALTER TABLE file_offsets ADD COLUMN last_input_tokens  INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE file_offsets ADD COLUMN last_output_tokens INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE file_offsets ADD COLUMN last_cache_tokens  INTEGER NOT NULL DEFAULT 0",
         })
         {
             try
@@ -252,6 +255,97 @@ public sealed class SyncQueue : IDisposable
             WHERE id = $id;
             """;
         cmd.Parameters.AddWithValue("$id", id);
+        cmd.ExecuteNonQuery();
+    }
+
+    // ── Codex cumulative baseline ─────────────────────────────────────────────
+
+    public (long ByteOffset, long LastInputTokens, long LastOutputTokens, long LastCacheTokens) GetCodexBaseline(string filePath)
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT byte_offset,
+                   COALESCE(last_input_tokens,  0),
+                   COALESCE(last_output_tokens, 0),
+                   COALESCE(last_cache_tokens,  0)
+            FROM file_offsets WHERE file_path = $p;
+            """;
+        cmd.Parameters.AddWithValue("$p", filePath);
+        using var reader = cmd.ExecuteReader();
+        return reader.Read()
+            ? (reader.GetInt64(0), reader.GetInt64(1), reader.GetInt64(2), reader.GetInt64(3))
+            : (0, 0, 0, 0);
+    }
+
+    public void SetCodexOffset(string filePath, long offset, long lastInput, long lastOutput, long lastCache)
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO file_offsets (file_path, byte_offset, last_input_tokens, last_output_tokens, last_cache_tokens)
+            VALUES ($p, $o, $li, $lo, $lc)
+            ON CONFLICT(file_path) DO UPDATE SET
+                byte_offset        = excluded.byte_offset,
+                last_input_tokens  = excluded.last_input_tokens,
+                last_output_tokens = excluded.last_output_tokens,
+                last_cache_tokens  = excluded.last_cache_tokens;
+            """;
+        cmd.Parameters.AddWithValue("$p",  filePath);
+        cmd.Parameters.AddWithValue("$o",  offset);
+        cmd.Parameters.AddWithValue("$li", lastInput);
+        cmd.Parameters.AddWithValue("$lo", lastOutput);
+        cmd.Parameters.AddWithValue("$lc", lastCache);
+        cmd.ExecuteNonQuery();
+    }
+
+    // Atomically advances the Codex file offset+baseline and enqueues the batch.
+    public void SetCodexOffsetAndEnqueue(string filePath, long offset,
+        long lastInput, long lastOutput, long lastCache, SyncBatch batch)
+    {
+        using var tx = _conn.BeginTransaction();
+
+        using var offsetCmd = _conn.CreateCommand();
+        offsetCmd.Transaction = tx;
+        offsetCmd.CommandText = """
+            INSERT INTO file_offsets (file_path, byte_offset, last_input_tokens, last_output_tokens, last_cache_tokens)
+            VALUES ($p, $o, $li, $lo, $lc)
+            ON CONFLICT(file_path) DO UPDATE SET
+                byte_offset        = excluded.byte_offset,
+                last_input_tokens  = excluded.last_input_tokens,
+                last_output_tokens = excluded.last_output_tokens,
+                last_cache_tokens  = excluded.last_cache_tokens;
+            """;
+        offsetCmd.Parameters.AddWithValue("$p",  filePath);
+        offsetCmd.Parameters.AddWithValue("$o",  offset);
+        offsetCmd.Parameters.AddWithValue("$li", lastInput);
+        offsetCmd.Parameters.AddWithValue("$lo", lastOutput);
+        offsetCmd.Parameters.AddWithValue("$lc", lastCache);
+        offsetCmd.ExecuteNonQuery();
+
+        using var enqCmd = _conn.CreateCommand();
+        enqCmd.Transaction = tx;
+        enqCmd.CommandText = """
+            INSERT INTO pending_batches
+                (agent, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, period_start, period_end, repo_name, model_id)
+            VALUES ($agent, $i, $o, $cr, $cw, $ps, $pe, $rn, $mid);
+            """;
+        enqCmd.Parameters.AddWithValue("$agent", batch.Agent);
+        enqCmd.Parameters.AddWithValue("$i",     batch.InputTokens);
+        enqCmd.Parameters.AddWithValue("$o",     batch.OutputTokens);
+        enqCmd.Parameters.AddWithValue("$cr",    batch.CacheReadTokens);
+        enqCmd.Parameters.AddWithValue("$cw",    batch.CacheWriteTokens);
+        enqCmd.Parameters.AddWithValue("$ps",    batch.PeriodStart);
+        enqCmd.Parameters.AddWithValue("$pe",    batch.PeriodEnd);
+        enqCmd.Parameters.AddWithValue("$rn",    (object?)batch.RepoName ?? DBNull.Value);
+        enqCmd.Parameters.AddWithValue("$mid",   (object?)batch.ModelId  ?? DBNull.Value);
+        enqCmd.ExecuteNonQuery();
+
+        tx.Commit();
+    }
+
+    public void ResetRetryTimers()
+    {
+        using var cmd = _conn.CreateCommand();
+        cmd.CommandText = "UPDATE pending_batches SET next_retry_at = datetime('now')";
         cmd.ExecuteNonQuery();
     }
 

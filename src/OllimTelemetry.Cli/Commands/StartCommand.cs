@@ -12,51 +12,74 @@ namespace OllimTelemetry.Cli.Commands;
 
 internal static class StartCommand
 {
-    /// <summary>Register the Claude Code hook and start tracking token usage.</summary>
+    /// <summary>Register hooks for all supported agents and start tracking token usage.</summary>
     public static async Task<int> RunAsync()
     {
-        var configManager = new ConfigManager();
-        var binaryPath    = Environment.ProcessPath ?? "ollim";
-        var hookCommand   = BuildHookCommand(binaryPath);
+        var configManager    = new ConfigManager();
+        var binaryPath       = Environment.ProcessPath ?? "ollim";
+        var claudeHookCmd    = BuildHookCommand(binaryPath);
+        var codexHookCmd     = BuildHookCommand(binaryPath, " --agent codex");
 
         using var queue = new SyncQueue();
 
         if (!File.Exists(configManager.ConfigFilePath))
         {
             var flow = new OnboardingFlow(configManager);
-            flow.Run(hookCommand);
+            flow.Run(claudeHookCmd, codexHookCmd);
             await BackfillAndSyncAsync(configManager, queue);
             return 0;
         }
 
-        var (changed, error) = ClaudeHookManager.Install(hookCommand);
-        if (error is not null)
+        // Claude Code hook
+        var (claudeChanged, claudeError) = ClaudeHookManager.Install(claudeHookCmd);
+        if (claudeError is not null)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Hook install failed: {error}");
+            AnsiConsole.MarkupLine($"[red]✗[/] Claude Code hook install failed: {claudeError}");
             return 1;
         }
-
-        if (changed)
+        if (claudeChanged)
             AnsiConsole.MarkupLine("[green]✓[/] Hook registered in ~/.claude/settings.json");
         else
-            AnsiConsole.MarkupLine("[dim]Hook already registered.[/]");
+            AnsiConsole.MarkupLine("[dim]Claude Code hook already registered.[/]");
 
-        // First run: no offsets stored yet → backfill historical sessions.
+        // Codex hook — skip silently if Codex is not installed on this machine.
+        // Always backfill Codex sessions when the hook is newly registered so that
+        // existing users who upgrade get their historical Codex sessions ingested.
+        bool codexJustInstalled = false;
+        if (CodexHookManager.IsCodexPresent())
+        {
+            var (codexChanged, codexError) = CodexHookManager.Install(codexHookCmd);
+            if (codexError is not null)
+                AnsiConsole.MarkupLine($"[yellow]⚠[/] Codex hook install failed: {codexError}");
+            else if (codexChanged)
+            {
+                AnsiConsole.MarkupLine("[green]✓[/] Hook registered in ~/.codex/hooks.json");
+                codexJustInstalled = true;
+            }
+            else
+                AnsiConsole.MarkupLine("[dim]Codex hook already registered.[/]");
+        }
+
+        // First run (no offsets at all): backfill everything.
+        // Upgrade run (Codex hook just registered): backfill only Codex so that
+        // existing users don't re-process Claude Code sessions they already submitted.
         if (!queue.HasAnyOffsets())
             await BackfillAndSyncAsync(configManager, queue);
+        else if (codexJustInstalled)
+            await BackfillCodexOnlyAsync(configManager, queue);
 
         return 0;
     }
 
-    private static string BuildHookCommand(string binaryPath)
+    private static string BuildHookCommand(string binaryPath, string suffix = "")
     {
         // In dev mode, propagate the current process's isolation env vars into the
-        // registered hook command so Claude Code fires the hook with the same context.
+        // registered hook command so the agent fires the hook with the same context.
         static string? Env(string key) => Environment.GetEnvironmentVariable(key);
 
-        var ollimEnv  = Env("OLLIM_ENV");
+        var ollimEnv = Env("OLLIM_ENV");
         if (ollimEnv != "dev")
-            return $"{binaryPath} hook";
+            return $"{binaryPath} hook{suffix}";
 
         static string ShellQuote(string val) => "'" + val.Replace("'", "'\\''") + "'";
 
@@ -67,23 +90,41 @@ internal static class StartCommand
             if (!string.IsNullOrEmpty(val))
                 parts.Append($"{key}={ShellQuote(val)} ");
         }
-        parts.Append($"{binaryPath} hook");
+        parts.Append($"{binaryPath} hook{suffix}");
         return parts.ToString();
     }
 
     private static async Task BackfillAndSyncAsync(ConfigManager configManager, SyncQueue queue)
     {
-        var config = configManager.LoadOrCreate();
-        var parser = new LogParser();
+        var config       = configManager.LoadOrCreate();
+        var claudeParser = new LogParser();
+        var codexParser  = new CodexLogParser();
 
-        var count = LogIngester.BackfillAll(config.Agent, parser, queue);
+        var count = LogIngester.BackfillAll(config.Agent, claudeParser, queue);
+        count    += LogIngester.BackfillCodex(codexParser, queue);
+
         if (count > 0)
         {
             AnsiConsole.MarkupLine($"[dim]Backfilled {count} session(s) from existing logs.[/]");
-            using var http  = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            var syncService  = new SyncService(configManager, queue, http,
-                UpdateChecker.CurrentVersion ?? "unknown");
-            await syncService.FlushOnceAsync();
+            await FlushAsync(configManager, queue);
         }
+    }
+
+    private static async Task BackfillCodexOnlyAsync(ConfigManager configManager, SyncQueue queue)
+    {
+        var count = LogIngester.BackfillCodex(new CodexLogParser(), queue);
+        if (count > 0)
+        {
+            AnsiConsole.MarkupLine($"[dim]Backfilled {count} Codex session(s) from existing logs.[/]");
+            await FlushAsync(configManager, queue);
+        }
+    }
+
+    private static async Task FlushAsync(ConfigManager configManager, SyncQueue queue)
+    {
+        using var http  = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        var syncService = new SyncService(configManager, queue, http,
+            UpdateChecker.CurrentVersion ?? "unknown");
+        await syncService.FlushOnceAsync();
     }
 }

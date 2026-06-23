@@ -13,11 +13,11 @@ public sealed class OnboardingFlow
         _configManager = configManager;
     }
 
-    public void Run(string hookCommand)
+    public void Run(string claudeHookCommand, string codexHookCommand)
     {
         AnsiConsole.Write(new Rule("[bold blue]Welcome to Ollim Telemetry[/]").RuleStyle("blue"));
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("Ollim reads your Claude Code token usage and can display");
+        AnsiConsole.MarkupLine("Ollim reads your AI coding agent token usage and can display");
         AnsiConsole.MarkupLine("it on a global leaderboard — [italic]anonymously[/], with your permission.");
         AnsiConsole.WriteLine();
 
@@ -32,16 +32,25 @@ public sealed class OnboardingFlow
         _configManager.Save(config);
         AnsiConsole.MarkupLine($"[green]✓[/] Config saved to [dim]{_configManager.ConfigFilePath}[/]");
 
-        var (_, error) = ClaudeHookManager.Install(hookCommand);
-        if (error is null)
+        var (_, claudeError) = ClaudeHookManager.Install(claudeHookCommand);
+        if (claudeError is null)
             AnsiConsole.MarkupLine("[green]✓[/] Hook registered in ~/.claude/settings.json");
         else
-            AnsiConsole.MarkupLine($"[red]✗[/] Hook install failed: {error}");
+            AnsiConsole.MarkupLine($"[red]✗[/] Claude Code hook install failed: {claudeError}");
+
+        if (CodexHookManager.IsCodexPresent())
+        {
+            var (_, codexError) = CodexHookManager.Install(codexHookCommand);
+            if (codexError is null)
+                AnsiConsole.MarkupLine("[green]✓[/] Hook registered in ~/.codex/hooks.json");
+            else
+                AnsiConsole.MarkupLine($"[yellow]⚠[/] Codex hook install failed: {codexError}");
+        }
 
         AnsiConsole.WriteLine();
         if (shareGlobal)
             AnsiConsole.MarkupLine("Run [bold]`ollim login`[/] to link your GitHub account and enable syncing.");
         else
-            AnsiConsole.MarkupLine("Run [bold]`ollim status`[/] to confirm the hook is active.");
+            AnsiConsole.MarkupLine("Run [bold]`ollim status`[/] to confirm hooks are active.");
     }
 }

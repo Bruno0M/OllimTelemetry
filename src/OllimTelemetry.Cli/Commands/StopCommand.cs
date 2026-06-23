@@ -8,14 +8,13 @@ namespace OllimTelemetry.Cli.Commands;
 
 internal static class StopCommand
 {
-    /// <summary>Unregister the Claude Code hook and stop tracking token usage.</summary>
+    /// <summary>Unregister hooks for all supported agents and stop tracking token usage.</summary>
     public static async Task<int> RunAsync()
     {
         var configManager = new ConfigManager();
         var binaryPath    = Environment.ProcessPath ?? "ollim";
-        var hookCommand   = $"{binaryPath} hook";
 
-        // Attempt to flush before removing the hook so pending batches are not abandoned.
+        // Attempt to flush before removing hooks so pending batches are not abandoned.
         using (var queue = new SyncQueue())
         {
             if (queue.CountPending() > 0)
@@ -30,18 +29,22 @@ internal static class StopCommand
             }
         }
 
-        var (removed, error) = ClaudeHookManager.Uninstall(hookCommand);
-
-        if (error is not null)
+        var (claudeRemoved, claudeError) = ClaudeHookManager.Uninstall($"{binaryPath} hook");
+        if (claudeError is not null)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] {error}");
+            AnsiConsole.MarkupLine($"[red]✗[/] {claudeError}");
             return 1;
         }
-
-        if (removed)
+        if (claudeRemoved)
             AnsiConsole.MarkupLine("[green]✓[/] Hook removed from ~/.claude/settings.json");
         else
-            AnsiConsole.MarkupLine("[dim]Hook was not installed — nothing to remove.[/]");
+            AnsiConsole.MarkupLine("[dim]Claude Code hook was not installed — nothing to remove.[/]");
+
+        var (codexRemoved, codexError) = CodexHookManager.Uninstall($"{binaryPath} hook --agent codex");
+        if (codexError is not null)
+            AnsiConsole.MarkupLine($"[yellow]⚠[/] Codex hook removal failed: {codexError}");
+        else if (codexRemoved)
+            AnsiConsole.MarkupLine("[green]✓[/] Hook removed from ~/.codex/hooks.json");
 
         return 0;
     }

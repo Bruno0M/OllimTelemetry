@@ -19,7 +19,11 @@ internal static class StatusCommand
         AnsiConsole.Write(new Rule(title).RuleStyle("grey"));
         AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLine($"  Hook:         {(hookInstalled ? "[green]active[/]" : "[red]not installed[/]")}");
+        var codexHookInstalled = CodexHookManager.IsCodexPresent() &&
+            CodexHookManager.IsAnyOllimHookInstalled();
+
+        AnsiConsole.MarkupLine($"  Claude Code:  {(hookInstalled ? "[green]active[/]" : "[red]not installed[/]")}");
+        AnsiConsole.MarkupLine($"  Codex:        {(CodexHookManager.IsCodexPresent() ? (codexHookInstalled ? "[green]active[/]" : "[red]not installed[/]") : "[dim]not detected[/]")}");
         AnsiConsole.MarkupLine($"  Sharing:      {(config.ShareGlobal ? "[green]enabled[/]" : "[yellow]disabled[/]")}");
         if (config.GitHubLogin is not null)
             AnsiConsole.MarkupLine($"  GitHub:       [dim]@{Markup.Escape(config.GitHubLogin)}[/]");
@@ -35,10 +39,10 @@ internal static class StatusCommand
         AnsiConsole.MarkupLine($"  Sessions tracked: [dim]{sessions}[/]");
         AnsiConsole.MarkupLine($"  Pending batches:  [dim]{pending}[/]");
 
-        if (!hookInstalled)
+        if (!hookInstalled || (CodexHookManager.IsCodexPresent() && !codexHookInstalled))
         {
             AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine("  [yellow]Run [bold]`ollim start`[/] to register the Claude Code hook.[/]");
+            AnsiConsole.MarkupLine("  [yellow]Run [bold]`ollim start`[/] to register missing hooks.[/]");
         }
 
         return Task.FromResult(0);

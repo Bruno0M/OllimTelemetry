@@ -16,6 +16,7 @@ app.Add("status",      StatusCommand.RunAsync);
 app.Add("config",      ConfigCommand.RunAsync);
 app.Add("stats",       StatsCommand.RunAsync);
 app.Add("leaderboard", LeaderboardCommand.RunAsync);
+app.Add("submit",      SubmitCommand.RunAsync);
 app.Add("hook",        HookCommand.RunAsync);
 app.Add("login",       LoginCommand.RunAsync);
 app.Add("logout",      LogoutCommand.RunAsync);
