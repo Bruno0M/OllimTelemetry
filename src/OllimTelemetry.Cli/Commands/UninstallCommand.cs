@@ -20,11 +20,17 @@ internal static class UninstallCommand
             return Task.FromResult(0);
         }
 
-        var binaryPath  = Environment.ProcessPath ?? "ollim";
-        var hookCommand = $"{binaryPath} hook";
-        var (_, hookError) = ClaudeHookManager.Uninstall(hookCommand);
-        if (hookError is not null)
-            AnsiConsole.MarkupLine($"[yellow]![/] Hook removal failed: {hookError}");
+        var binaryPath       = Environment.ProcessPath ?? "ollim";
+        var claudeHookCmd    = $"{binaryPath} hook";
+        var codexHookCmd     = $"{binaryPath} hook --agent codex";
+
+        var (_, claudeError) = ClaudeHookManager.Uninstall(claudeHookCmd);
+        if (claudeError is not null)
+            AnsiConsole.MarkupLine($"[yellow]![/] Claude Code hook removal failed: {claudeError}");
+
+        var (_, codexError) = CodexHookManager.Uninstall(codexHookCmd);
+        if (codexError is not null)
+            AnsiConsole.MarkupLine($"[yellow]![/] Codex hook removal failed: {codexError}");
 
         foreach (var dir in new[] { OllimPaths.ConfigDir, OllimPaths.DataDir, OllimPaths.LegacyDir })
         {
@@ -32,7 +38,8 @@ internal static class UninstallCommand
                 Directory.Delete(dir, recursive: true);
         }
 
-        AnsiConsole.MarkupLine(hookError is null ? "[green]✓[/] Hook removed." : "[yellow]![/] Hook may still be registered — remove it manually from ~/.claude/settings.json");
+        AnsiConsole.MarkupLine(claudeError is null ? "[green]✓[/] Claude Code hook removed." : "[yellow]![/] Claude Code hook may still be registered — remove it manually from ~/.claude/settings.json");
+        AnsiConsole.MarkupLine(codexError is null ? "[green]✓[/] Codex hook removed." : "[yellow]![/] Codex hook may still be registered — remove it manually from ~/.codex/hooks.json");
         AnsiConsole.MarkupLine("[green]✓[/] All local data removed.");
         AnsiConsole.MarkupLine("[dim]The ollim binary itself was not removed — delete it manually if desired.[/]");
 

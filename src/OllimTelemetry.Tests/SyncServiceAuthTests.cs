@@ -84,8 +84,10 @@ public sealed class SyncServiceAuthTests : IDisposable
     }
 
     [Fact]
-    public async Task FlushOnceAsync_On401_ClearsSessionTokenAndLogin()
+    public async Task FlushOnceAsync_On401_PreservesSessionTokenAndLogin()
     {
+        // A single 401 must NOT wipe credentials — it may be transient (rate-limit,
+        // clock skew). The user would have to re-link unnecessarily if we cleared here.
         using var queue = Queue();
         queue.Enqueue(Batch());
 
@@ -103,8 +105,8 @@ public sealed class SyncServiceAuthTests : IDisposable
         await new SyncService(manager, queue, http).FlushOnceAsync();
 
         var config = manager.LoadOrCreate();
-        Assert.Null(config.SessionToken);
-        Assert.Null(config.GitHubLogin);
+        Assert.Equal("tok123",   config.SessionToken);
+        Assert.Equal("testuser", config.GitHubLogin);
     }
 
     [Fact]
