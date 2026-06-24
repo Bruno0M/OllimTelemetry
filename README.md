@@ -1,61 +1,79 @@
-# ollim-telemetry
+<div align="center">
+  <img src="assets/logo.svg" width="120" alt="ollim" />
+  <h1>ollim-telemetry</h1>
+  <p>Track token usage across your AI coding sessions — locally, privately, with opt-in leaderboard.</p>
 
-A lightweight CLI tool that hooks into AI coding agents (Claude Code, Codex CLI), parses your local token-usage logs, and (with opt-in) submits anonymized counts to [ollim.dev](https://ollim.dev) for leaderboard comparison.
+  [![NuGet](https://img.shields.io/nuget/v/ollim-telemetry?label=NuGet&color=5c2d91)](https://www.nuget.org/packages/ollim-telemetry)
+  [![npm](https://img.shields.io/npm/v/ollim-telemetry?label=npm&color=cb3837)](https://www.npmjs.com/package/ollim-telemetry)
+  [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+  [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey)](https://github.com/Bruno0M/OllimTelemetry/releases)
 
-Built with NativeAOT — ~9 MB binary, 23 ms startup, ~10 MB steady-state RAM.
+  [Português](./README.pt-br.md)
+</div>
+
+---
+
+A lightweight CLI that hooks into AI coding agents, reads only the `usage` field from their local logs, and (with opt-in) submits anonymized token counts to [ollim.dev](https://ollim.dev) for leaderboard comparison. No background daemon — everything runs via Stop hooks.
+
+Built with NativeAOT — **~9 MB binary, ~5 ms startup, ~10 MB RAM**.
 
 ## Install
 
-**MacOS/Linux (Recommended):**
+**macOS / Linux (recommended)**
 
 ```bash
 curl -fsSL https://ollim.dev/install.sh | bash
 ```
 
-**Npm:**
+**npm**
 
 ```bash
 npm install -g ollim-telemetry
 ```
+
 > Requires Node ≥ 18.
 
-**Nuget:**
+**NuGet**
 
 ```bash
 dotnet tool install -g ollim-telemetry
 ```
+
 > Requires .NET 10 SDK.
 
-**Pre-built Binaries**
+**Pre-built binaries**
 
-Download from [releases](https://github.com/Bruno0M/OllimTelemetry/releases):
+Download from [Releases](https://github.com/Bruno0M/OllimTelemetry/releases):
 
-- Linux: `ollim-linux-x64.tar.gz` / `ollim-linux-arm64.tar.gz`
-- macOS: `ollim-osx-arm64.tar.gz`
+| Platform | File |
+|---|---|
+| Linux x64 | `ollim-linux-x64.tar.gz` |
+| Linux arm64 | `ollim-linux-arm64.tar.gz` |
+| macOS arm64 | `ollim-osx-arm64.tar.gz` |
 
 ## Quick start
 
 ```bash
-ollim start      # first run triggers opt-in flow and registers hooks for all detected agents
-ollim status     # show hook state per agent, sharing settings, and pending sync queue
+ollim start   # first run triggers opt-in flow and registers hooks for all detected agents
+ollim status  # show hook state per agent, sharing settings, and pending sync queue
 ```
 
 ## How it works
 
 1. `ollim start` registers a **Stop hook** in `~/.claude/settings.json` (Claude Code) and `~/.codex/hooks.json` (Codex, if installed)
-2. After every session, the hook reads only the `usage` field from the agent's log file (input/output/cache tokens) — message content is never read
-3. Counts are stored in a local SQLite queue at `~/.local/share/ollim/queue.db`
+2. After every session, the hook reads only the `usage` field from the agent's log file — message content is never read
+3. Token counts are stored in a local SQLite queue at `~/.local/share/ollim/queue.db`
 4. The hook then attempts to flush the queue to `api.ollim.dev` if sharing is enabled
-5. HTTP failures are retried with exponential backoff on the next hook invocation — nothing is lost
+5. HTTP failures are retried with exponential backoff on the next invocation — nothing is lost
 
 ## Privacy
 
 - Only token counts are collected: `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`
-- Message content, prompts, and responses are never read or transmitted
+- Message content, prompts, and responses are **never read or transmitted**
 - Sharing is **disabled by default** — the first-run flow asks for explicit consent
 - Sharing requires a GitHub account — run `ollim login` after opting in
 - You can share your repo name for leaderboard context, but it is also opt-in
-- A random `UserId` (UUID) is generated locally and linked to your GitHub account
+- A random UUID is generated locally and linked to your GitHub account
 
 ## Commands
 
@@ -84,7 +102,7 @@ Config lives at `~/.config/ollim/config.json` (XDG Base Directory spec):
 }
 ```
 
-Run `ollim config` to open it directly, or edit it by hand.
+Run `ollim config` to open it directly, or edit by hand.
 
 ## Building from source
 
@@ -96,9 +114,7 @@ dotnet build
 dotnet test
 
 # Run the CLI without NativeAOT (fast iteration)
-# launchSettings.json auto-sets OLLIM_ENV=dev, OLLIM_BACKEND_URL=http://localhost:5000, and isolated XDG paths (/tmp/ollim-dev)
 dotnet run --project src/OllimTelemetry.Cli --launch-profile dev -- status
-dotnet run --project src/OllimTelemetry.Cli --launch-profile dev -- start
 
 # Publish a NativeAOT binary for a single RID
 dotnet publish src/OllimTelemetry.Cli/OllimTelemetry.Cli.csproj \
@@ -108,7 +124,7 @@ dotnet publish src/OllimTelemetry.Cli/OllimTelemetry.Cli.csproj \
 dotnet script scripts/build.cs
 ```
 
-## Supported Agents
+## Supported agents
 
 | Agent | Status |
 |---|---|

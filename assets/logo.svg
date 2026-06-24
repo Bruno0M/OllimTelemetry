@@ -1,0 +1,26 @@
+<svg width="200" height="170" viewBox="100 25 200 170" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Background -->
+  <rect x="100" y="25" width="200" height="170" rx="44" fill="#252542"/>
+
+  <!-- Ears -->
+  <ellipse cx="152" cy="118" rx="22" ry="36" fill="#ffffff"/>
+  <ellipse cx="248" cy="118" rx="22" ry="36" fill="#ffffff"/>
+
+  <!-- Curly top (fluffy crown) -->
+  <circle cx="170" cy="82" r="18" fill="#ffffff"/>
+  <circle cx="190" cy="74" r="20" fill="#ffffff"/>
+  <circle cx="210" cy="74" r="20" fill="#ffffff"/>
+  <circle cx="230" cy="82" r="18" fill="#ffffff"/>
+  <circle cx="200" cy="70" r="18" fill="#ffffff"/>
+
+  <!-- Head -->
+  <ellipse cx="200" cy="120" rx="48" ry="44" fill="#ffffff"/>
+
+  <!-- Eyes -->
+  <circle cx="184" cy="116" r="7" fill="#23233a"/>
+  <circle cx="216" cy="116" r="7" fill="#23233a"/>
+
+  <!-- Nose -->
+  <ellipse cx="200" cy="132" rx="11" ry="7" fill="#23233a"/>
+</svg>
