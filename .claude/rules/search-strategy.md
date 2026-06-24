@@ -30,16 +30,18 @@ src/
 │   │   ├── ConfigJsonContext.cs   ← Source-gen JSON context for AppConfig
 │   │   └── ConfigManager.cs      ← Load/save config file
 │   ├── Parsing/
-│   │   ├── LogParser.cs           ← JSONL delta reader; byte-offset based
+│   │   ├── LogParser.cs           ← JSONL delta reader; byte-offset based (Claude Code)
+│   │   ├── CodexLogParser.cs      ← JSONL cumulative reader for Codex sessions
 │   │   └── ProjectPathResolver.cs ← Derives project name from JSONL file path
 │   ├── Queue/
 │   │   └── SyncQueue.cs           ← SQLite queue (~/.local/share/ollim/queue.db)
 │   ├── Sync/
 │   │   └── SyncService.cs         ← Flush queue → POST /v1/submit (backoff)
 │   ├── Hook/
-│   │   └── ClaudeHookManager.cs   ← Reads/writes ~/.claude/settings.json Stop hook
+│   │   ├── ClaudeHookManager.cs   ← Reads/writes ~/.claude/settings.json Stop hook
+│   │   └── CodexHookManager.cs    ← Reads/writes ~/.codex/hooks.json Stop hook
 │   └── Ingestion/
-│       └── LogIngester.cs         ← ProcessFile (delta) + BackfillAll (historical)
+│       └── LogIngester.cs         ← ProcessFile/BackfillAll (Claude Code) + ProcessCodexFile/BackfillCodex (Codex)
 │
 └── OllimTelemetry.Cli/            ← Entry point; all terminal I/O lives here
     ├── Program.cs                 ← XdgMigration + ConsoleAppFramework routing + update notice
@@ -52,7 +54,8 @@ src/
     │   ├── LeaderboardCommand.cs  ← ollim leaderboard
     │   ├── LoginCommand.cs        ← ollim login (GitHub OAuth device flow)
     │   ├── LogoutCommand.cs       ← ollim logout
-    │   ├── HookCommand.cs         ← ollim hook (invoked by Claude Code Stop event)
+    │   ├── HookCommand.cs         ← ollim hook [--agent claude-code|codex] (invoked by agent Stop event)
+    │   ├── SubmitCommand.cs       ← ollim submit (manual flush with backoff reset)
     │   ├── StopHookInput.cs       ← Deserialized stdin from Claude Code Stop event
     │   └── UninstallCommand.cs    ← ollim uninstall
     ├── Auth/
@@ -145,11 +148,18 @@ Glob pattern="src/OllimTelemetry.Tests/*.cs"
 
 ### Debugging the hook flow
 
-1. Entry: Claude Code fires Stop event → `ollim hook` → `HookCommand.RunAsync`
+**Claude Code:** `ollim hook` (default, `--agent claude-code`)
+1. Entry: Claude Code fires Stop event → `HookCommand.RunAsync` → `RunClaudeCodeAsync`
 2. Reads stdin JSON (`StopHookInput`) for `transcript_path` or `session_id`
 3. Processes file delta: `LogIngester.ProcessFile` → `LogParser.Parse` → `SyncQueue.SetOffsetAndEnqueue`
 4. Flush: `SyncService.FlushOnceAsync` → `SyncQueue` → `POST /v1/submit`
-5. Always exits 0 — hook failures must never interrupt Claude Code
+5. Always exits 0 — hook failures must never interrupt the agent
+
+**Codex:** `ollim hook --agent codex`
+1. Entry: Codex fires Stop event → `HookCommand.RunAsync` → `RunCodexAsync`
+2. No stdin parsing — scans all `~/.codex/sessions/**/*.jsonl` for new content
+3. `LogIngester.BackfillCodex` → `CodexLogParser.Parse` → delta vs stored baseline → `SyncQueue.SetCodexOffsetAndEnqueue`
+4. Flush: `SyncService.FlushOnceAsync` → `POST /v1/submit`
 
 ### Debugging JSON / NativeAOT issues
 
@@ -162,6 +172,7 @@ Glob pattern="src/OllimTelemetry.Tests/*.cs"
 1. `src/OllimTelemetry.Core/Queue/SyncQueue.cs` → `EnsureSchema()` for table definitions
 2. DB file: `~/.local/share/ollim/queue.db` (or `$XDG_DATA_HOME/ollim/queue.db`)
 3. `file_offsets` table tracks byte position per JSONL file; `pending_batches` holds unsynced data
+4. Codex: `file_offsets` also stores `last_input_tokens`, `last_output_tokens`, `last_cache_tokens` (cumulative baseline for delta computation)
 
 ### Configuration issues
 
