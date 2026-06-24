@@ -1,6 +1,6 @@
 # ollim-telemetry
 
-A lightweight CLI tool that hooks into Claude Code's Stop event, parses your local token-usage logs, and (with opt-in) submits anonymized counts to [ollim.dev](https://ollim.dev) for leaderboard comparison.
+A lightweight CLI tool that hooks into AI coding agents (Claude Code, Codex CLI), parses your local token-usage logs, and (with opt-in) submits anonymized counts to [ollim.dev](https://ollim.dev) for leaderboard comparison.
 
 Built with NativeAOT — ~9 MB binary, 23 ms startup, ~10 MB steady-state RAM.
 
@@ -36,17 +36,17 @@ Download from [releases](https://github.com/Bruno0M/OllimTelemetry/releases):
 ## Quick start
 
 ```bash
-ollim start      # first run triggers opt-in flow and registers the Claude Code Stop hook
-ollim status     # show hook state, sharing settings, and pending sync queue
+ollim start      # first run triggers opt-in flow and registers hooks for all detected agents
+ollim status     # show hook state per agent, sharing settings, and pending sync queue
 ```
 
 ## How it works
 
-1. `ollim start` registers itself as a **Stop hook** in `~/.claude/settings.json`
-2. After every Claude Code session, the hook reads only the `usage` field from the JSONL file (input/output/cache tokens) — message content is never read
-4. Counts are stored in a local SQLite queue at `~/.local/share/ollim/queue.db`
-5. The hook then attempts to flush the queue to `api.ollim.dev` if sharing is enabled
-6. HTTP failures are retried with exponential backoff on the next hook invocation — nothing is lost
+1. `ollim start` registers a **Stop hook** in `~/.claude/settings.json` (Claude Code) and `~/.codex/hooks.json` (Codex, if installed)
+2. After every session, the hook reads only the `usage` field from the agent's log file (input/output/cache tokens) — message content is never read
+3. Counts are stored in a local SQLite queue at `~/.local/share/ollim/queue.db`
+4. The hook then attempts to flush the queue to `api.ollim.dev` if sharing is enabled
+5. HTTP failures are retried with exponential backoff on the next hook invocation — nothing is lost
 
 ## Privacy
 
@@ -61,11 +61,12 @@ ollim status     # show hook state, sharing settings, and pending sync queue
 
 | Command | Description |
 |---|---|
-| `ollim start` | Register the Claude Code Stop hook (runs onboarding on first use, backfills history) |
-| `ollim stop` | Unregister the hook and flush any pending batches |
+| `ollim start` | Register hooks for all detected agents (runs onboarding on first use, backfills history) |
+| `ollim stop` | Unregister all hooks and flush any pending batches |
 | `ollim status` | Show hook state, sharing config, and pending batch count |
 | `ollim login` | Link a GitHub account (required to sync data) |
 | `ollim logout` | Unlink GitHub account and disable leaderboard sharing |
+| `ollim submit` | Manually flush all pending sessions to the backend (resets retry timers) |
 | `ollim config` | Open `~/.config/ollim/config.json` in `$VISUAL`/`$EDITOR`/`vi` |
 | `ollim uninstall` | Unregister the hook and delete all local data |
 
@@ -112,7 +113,7 @@ dotnet script scripts/build.cs
 | Agent | Status |
 |---|---|
 | [Claude Code](https://claude.ai/code) | ✅ Supported |
-| [Codex CLI](https://github.com/openai/codex) | 🚧 Coming soon |
+| [Codex CLI](https://github.com/openai/codex) | ✅ Supported |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | 🚧 Coming soon |
 | [Cursor](https://cursor.com) | 🚧 Coming soon |
 | [GitHub Copilot](https://github.com/features/copilot) | 🚧 Coming soon |
