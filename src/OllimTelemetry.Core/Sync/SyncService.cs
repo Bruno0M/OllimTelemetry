@@ -28,7 +28,7 @@ public sealed class SyncService
     /// Skips silently if ShareGlobal is disabled. HTTP failures are caught and
     /// logged — the batch stays in SQLite for the next call.
     /// </summary>
-    public async Task FlushOnceAsync(CancellationToken ct = default)
+    public async Task FlushOnceAsync(CancellationToken ct = default, IProgress<int>? progress = null)
     {
         var config = _configManager.LoadOrCreate();
         if (!config.ShareGlobal) return;
@@ -108,6 +108,7 @@ public sealed class SyncService
 
                 if (sent.Count > 0)
                 {
+                    progress?.Report(sent.Count);
                     config = config with { LastSyncAt = DateTime.UtcNow.ToString("O") };
                     _configManager.Save(config);
                 }

@@ -148,12 +148,23 @@ internal static class LoginCommand
     private static async Task FlushPendingAsync(ConfigManager configManager)
     {
         using var queue = new SyncQueue();
-        if (queue.CountPending() == 0) return;
-        AnsiConsole.MarkupLine("[dim]Syncing pending sessions…[/]");
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        var syncService = new SyncService(configManager, queue, http,
-            UpdateChecker.CurrentVersion ?? "unknown");
-        await syncService.FlushOnceAsync();
+        var total = queue.CountPending();
+        if (total == 0) return;
+
+        await AnsiConsole.Progress()
+            .AutoClear(false)
+            .HideCompleted(false)
+            .Columns(new TaskDescriptionColumn(), new ProgressBarColumn(), new PercentageColumn(), new SpinnerColumn())
+            .StartAsync(async ctx =>
+            {
+                var task     = ctx.AddTask("[green]Syncing sessions[/]", maxValue: total);
+                var progress = new Progress<int>(n => task.Increment(n));
+
+                using var http      = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+                var       syncService = new SyncService(configManager, queue, http,
+                    UpdateChecker.CurrentVersion ?? "unknown");
+                await syncService.FlushOnceAsync(progress: progress);
+            });
     }
 
     private static void DefaultOpenBrowser(string url)
