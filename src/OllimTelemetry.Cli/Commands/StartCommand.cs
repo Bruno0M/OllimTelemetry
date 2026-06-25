@@ -71,7 +71,7 @@ internal static class StartCommand
 
         // Offer GitHub login if the user hasn't authenticated yet.
         var cfg = configManager.LoadOrCreate();
-        if (cfg.ShareGlobal && cfg.SessionToken is null)
+        if (cfg.SessionToken is null)
         {
             AnsiConsole.WriteLine();
             var doLogin = AnsiConsole.Prompt(
