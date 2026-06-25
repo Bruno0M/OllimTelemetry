@@ -1,7 +1,10 @@
 using System.Diagnostics;
 using System.Net.Http.Json;
 using OllimTelemetry.Cli.Auth;
+using OllimTelemetry.Cli.Update;
 using OllimTelemetry.Core.Config;
+using OllimTelemetry.Core.Queue;
+using OllimTelemetry.Core.Sync;
 using Spectre.Console;
 
 namespace OllimTelemetry.Cli.Commands;
@@ -122,6 +125,7 @@ internal static class LoginCommand
         if (linked is not null)
         {
             AnsiConsole.MarkupLine($"[green]✓[/] Linked as [bold]@{Markup.Escape(linked)}[/]");
+            await FlushPendingAsync(configManager);
             return 0;
         }
 
@@ -139,6 +143,17 @@ internal static class LoginCommand
             return await response.Content.ReadFromJsonAsync(CliJsonContext.Default.CliPollResponse);
         }
         catch { return null; }
+    }
+
+    private static async Task FlushPendingAsync(ConfigManager configManager)
+    {
+        using var queue = new SyncQueue();
+        if (queue.CountPending() == 0) return;
+        AnsiConsole.MarkupLine("[dim]Syncing pending sessions…[/]");
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        var syncService = new SyncService(configManager, queue, http,
+            UpdateChecker.CurrentVersion ?? "unknown");
+        await syncService.FlushOnceAsync();
     }
 
     private static void DefaultOpenBrowser(string url)
