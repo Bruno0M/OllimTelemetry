@@ -27,46 +27,60 @@ internal static class StartCommand
             var flow = new OnboardingFlow(configManager);
             flow.Run(claudeHookCmd, codexHookCmd);
             await BackfillAndSyncAsync(configManager, queue);
-            return 0;
         }
-
-        // Claude Code hook
-        var (claudeChanged, claudeError) = ClaudeHookManager.Install(claudeHookCmd);
-        if (claudeError is not null)
-        {
-            AnsiConsole.MarkupLine($"[red]✗[/] Claude Code hook install failed: {claudeError}");
-            return 1;
-        }
-        if (claudeChanged)
-            AnsiConsole.MarkupLine("[green]✓[/] Hook registered in ~/.claude/settings.json");
         else
-            AnsiConsole.MarkupLine("[dim]Claude Code hook already registered.[/]");
-
-        // Codex hook — skip silently if Codex is not installed on this machine.
-        // Always backfill Codex sessions when the hook is newly registered so that
-        // existing users who upgrade get their historical Codex sessions ingested.
-        bool codexJustInstalled = false;
-        if (CodexHookManager.IsCodexPresent())
         {
-            var (codexChanged, codexError) = CodexHookManager.Install(codexHookCmd);
-            if (codexError is not null)
-                AnsiConsole.MarkupLine($"[yellow]⚠[/] Codex hook install failed: {codexError}");
-            else if (codexChanged)
+            // Claude Code hook
+            var (claudeChanged, claudeError) = ClaudeHookManager.Install(claudeHookCmd);
+            if (claudeError is not null)
             {
-                AnsiConsole.MarkupLine("[green]✓[/] Hook registered in ~/.codex/hooks.json");
-                codexJustInstalled = true;
+                AnsiConsole.MarkupLine($"[red]✗[/] Claude Code hook install failed: {claudeError}");
+                return 1;
             }
+            if (claudeChanged)
+                AnsiConsole.MarkupLine("[green]✓[/] Hook registered in ~/.claude/settings.json");
             else
-                AnsiConsole.MarkupLine("[dim]Codex hook already registered.[/]");
+                AnsiConsole.MarkupLine("[dim]Claude Code hook already registered.[/]");
+
+            // Codex hook — skip silently if Codex is not installed on this machine.
+            // Always backfill Codex sessions when the hook is newly registered so that
+            // existing users who upgrade get their historical Codex sessions ingested.
+            bool codexJustInstalled = false;
+            if (CodexHookManager.IsCodexPresent())
+            {
+                var (codexChanged, codexError) = CodexHookManager.Install(codexHookCmd);
+                if (codexError is not null)
+                    AnsiConsole.MarkupLine($"[yellow]⚠[/] Codex hook install failed: {codexError}");
+                else if (codexChanged)
+                {
+                    AnsiConsole.MarkupLine("[green]✓[/] Hook registered in ~/.codex/hooks.json");
+                    codexJustInstalled = true;
+                }
+                else
+                    AnsiConsole.MarkupLine("[dim]Codex hook already registered.[/]");
+            }
+
+            // First run (no offsets at all): backfill everything.
+            // Upgrade run (Codex hook just registered): backfill only Codex so that
+            // existing users don't re-process Claude Code sessions they already submitted.
+            if (!queue.HasAnyOffsets())
+                await BackfillAndSyncAsync(configManager, queue);
+            else if (codexJustInstalled)
+                await BackfillCodexOnlyAsync(configManager, queue);
         }
 
-        // First run (no offsets at all): backfill everything.
-        // Upgrade run (Codex hook just registered): backfill only Codex so that
-        // existing users don't re-process Claude Code sessions they already submitted.
-        if (!queue.HasAnyOffsets())
-            await BackfillAndSyncAsync(configManager, queue);
-        else if (codexJustInstalled)
-            await BackfillCodexOnlyAsync(configManager, queue);
+        // Offer GitHub login if the user hasn't authenticated yet.
+        var cfg = configManager.LoadOrCreate();
+        if (cfg.ShareGlobal && cfg.SessionToken is null)
+        {
+            AnsiConsole.WriteLine();
+            var doLogin = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("[bold]Link your GitHub account now to start syncing?[/]")
+                    .AddChoices("Yes", "No")) == "Yes";
+            if (doLogin)
+                await LoginCommand.RunAsync();
+        }
 
         return 0;
     }

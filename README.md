@@ -54,9 +54,12 @@ Download from [Releases](https://github.com/Bruno0M/OllimTelemetry/releases):
 ## Quick start
 
 ```bash
-ollim start   # first run triggers opt-in flow and registers hooks for all detected agents
-ollim status  # show hook state per agent, sharing settings, and pending sync queue
+ollim start   # register hooks for all detected agents (runs opt-in flow on first use)
+ollim login   # link your GitHub account — required to send data to the leaderboard
+ollim status  # confirm hooks are active and sharing is enabled
 ```
+
+> `ollim start` tracks your sessions locally right away. `ollim login` is only needed if you want to sync data and appear on the leaderboard.
 
 ## How it works
 

@@ -47,10 +47,10 @@ public sealed class OnboardingFlow
                 AnsiConsole.MarkupLine($"[yellow]⚠[/] Codex hook install failed: {codexError}");
         }
 
-        AnsiConsole.WriteLine();
-        if (shareGlobal)
-            AnsiConsole.MarkupLine("Run [bold]`ollim login`[/] to link your GitHub account and enable syncing.");
-        else
+        if (!shareGlobal)
+        {
+            AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine("Run [bold]`ollim status`[/] to confirm hooks are active.");
+        }
     }
 }

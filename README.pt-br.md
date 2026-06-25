@@ -54,9 +54,12 @@ Baixe em [Releases](https://github.com/Bruno0M/OllimTelemetry/releases):
 ## Primeiros passos
 
 ```bash
-ollim start   # primeiro uso dispara o fluxo de opt-in e registra os hooks nos agentes detectados
-ollim status  # exibe o estado dos hooks, configurações de compartilhamento e fila pendente
+ollim start   # registra os hooks nos agentes detectados (executa o fluxo de opt-in no primeiro uso)
+ollim login   # vincula sua conta GitHub — necessário para enviar dados ao leaderboard
+ollim status  # confirma que os hooks estão ativos e o compartilhamento está habilitado
 ```
+
+> `ollim start` começa a registrar suas sessões localmente imediatamente. `ollim login` só é necessário se você quiser sincronizar os dados e aparecer no leaderboard.
 
 ## Como funciona
 
