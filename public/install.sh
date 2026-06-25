@@ -88,3 +88,8 @@ if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
 fi
 
 echo "  Run: ollim start"
+
+curl -fsSL -X POST "https://api.ollim.dev/v1/install" \
+  -H "Content-Type: application/json" \
+  -d "{\"platform\":\"${RID}\"}" \
+  --max-time 5 >/dev/null 2>&1 & disown
